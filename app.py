@@ -321,20 +321,18 @@ def main():
                             st.code("OPENAI_API_KEY = \"sk-your-key-here\"", language="toml")
                         else:
                             st.code("OPENAI_API_KEY=sk-your-key-here", language="bash")
-                    elif "Imagen" in ai_model:
-                        config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
-                        st.info(f"🔑 Add GOOGLE_API_KEY to your {config_source} (same as Gemini)")
-                        if EnvironmentManager.is_streamlit_deployment():
-                            st.code("GOOGLE_API_KEY = \"your-google-key-here\"", language="toml")
-                        else:
-                            st.code("GOOGLE_API_KEY=your-google-key-here", language="bash")
+                    if "Imagen" in ai_model:
+                        st.info("🔑 Add GOOGLE_API_KEY to your environment:")
+                        st.markdown("**For Streamlit Cloud:**")
+                        st.code("GOOGLE_API_KEY = \"your-google-key-here\"", language="toml")
+                        st.markdown("**For Local Development (.env):**")
+                        st.code("GOOGLE_API_KEY=your-google-key-here", language="bash")
                     elif "Nano Banana" in ai_model:
-                        config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
-                        st.info(f"🔑 Add GOOGLE_API_KEY to your {config_source}")
-                        if EnvironmentManager.is_streamlit_deployment():
-                            st.code("GOOGLE_API_KEY = \"your-google-key-here\"", language="toml")
-                        else:
-                            st.code("GOOGLE_API_KEY=your-google-key-here", language="bash")
+                        st.info("🔑 Add GOOGLE_API_KEY to your environment:")
+                        st.markdown("**For Streamlit Cloud:**")
+                        st.code("GOOGLE_API_KEY = \"your-google-key-here\"", language="toml")
+                        st.markdown("**For Local Development (.env):**")
+                        st.code("GOOGLE_API_KEY=your-google-key-here", language="bash")
                 elif status == "coming_soon":
                     st.error(f"❌ {ai_model} integration is in development - cannot generate images")
         
