@@ -4,17 +4,22 @@ import io
 from PIL import Image
 from datetime import datetime
 import json
-from dotenv import load_dotenv
 from utils.ai_generator import AIImageGenerator
 from utils.image_processor import ImageProcessor
-from utils.config import Config
+from utils.config import Config, EnvironmentManager
 from utils.helpers import display_model_info, validate_inputs, suggest_prompt_improvements
 from utils.template_manager import TemplateManager
 from utils.prompts import PromptBuilder
 # Commented out: setup_api_keys, show_generation_tips, display_usage_stats
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file only for local development
+try:
+    if not EnvironmentManager.is_streamlit_deployment():
+        from dotenv import load_dotenv
+        load_dotenv()
+except ImportError:
+    # dotenv not available, skip loading
+    pass
 
 def analyze_logo_details(logo_file):
     """Simplified logo analysis for AI prompt (templates and reference images handle placement)"""

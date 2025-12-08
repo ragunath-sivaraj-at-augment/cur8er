@@ -1,30 +1,40 @@
 import streamlit as st
-from utils.config import Config
+from utils.config import Config, EnvironmentManager
 from utils.ai_generator import APIKeyManager
 
 def setup_api_keys():
     """Setup and display API key configuration status"""
-    import os
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔑 API Configuration")
     
-    # Check OpenAI API Key from environment
-    openai_key = os.getenv("OPENAI_API_KEY")
-    google_key = os.getenv("GOOGLE_API_KEY")
-    # nano_banana_key = os.getenv("NANO_BANANA_API_KEY")
+    # Get API keys using the new EnvironmentManager
+    openai_key = EnvironmentManager.get_config_value("OPENAI_API_KEY")
+    google_key = EnvironmentManager.get_config_value("GOOGLE_API_KEY")
+    # nano_banana_key = EnvironmentManager.get_config_value("NANO_BANANA_API_KEY")
+    
+    # Display deployment context
+    is_streamlit_deployment = EnvironmentManager.is_streamlit_deployment()
+    config_source = "Streamlit Secrets" if is_streamlit_deployment else "Environment Variables"
+    st.sidebar.info(f"📍 Config source: {config_source}")
     
     if openai_key:
         st.sidebar.success("✅ OpenAI API Key configured")
     else:
         st.sidebar.error("❌ OpenAI API Key missing")
-        st.sidebar.info("📄 Add OPENAI_API_KEY to your .env file")
+        if is_streamlit_deployment:
+            st.sidebar.info("🔐 Add OPENAI_API_KEY to Streamlit secrets")
+        else:
+            st.sidebar.info("📄 Add OPENAI_API_KEY to your .env file")
     
     if google_key:
         st.sidebar.success("✅ Google API Key configured")
     else:
         st.sidebar.warning("⚠️ Google API Key missing (for Gemini)")
-        st.sidebar.info("📄 Add GOOGLE_API_KEY to your .env file")
+        if is_streamlit_deployment:
+            st.sidebar.info("🔐 Add GOOGLE_API_KEY to Streamlit secrets")
+        else:
+            st.sidebar.info("📄 Add GOOGLE_API_KEY to your .env file")
     
     # if nano_banana_key:
     #     st.sidebar.success("✅ Nano Banana API Key configured")

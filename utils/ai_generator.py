@@ -7,6 +7,7 @@ from typing import Optional, Tuple
 import streamlit as st
 import time
 from .prompts import PromptBuilder
+from .config import EnvironmentManager
 
 class AIImageGenerator:
     """Handles AI image generation from multiple providers"""
@@ -34,9 +35,10 @@ class AIImageGenerator:
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
         logger = logging.getLogger(__name__)
         
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = EnvironmentManager.get_config_value("OPENAI_API_KEY")
         if not api_key:
-            error_msg = "OpenAI API key not found. Please add OPENAI_API_KEY to your .env file."
+            config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+            error_msg = f"OpenAI API key not found. Please add OPENAI_API_KEY to your {config_source}."
             st.error(f"❌ {error_msg}")
             st.info("🔑 Using demo mode instead. Add your API key to generate real images.")
             logger.error(error_msg)
@@ -73,10 +75,11 @@ class AIImageGenerator:
         logger = logging.getLogger(__name__)
         
         try:
-            api_key = os.getenv("GOOGLE_API_KEY")
+            api_key = EnvironmentManager.get_config_value("GOOGLE_API_KEY")
             
             if not api_key:
-                error_msg = "Google API key not found. Add GOOGLE_API_KEY to your .env file for Imagen."
+                config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                error_msg = f"Google API key not found. Add GOOGLE_API_KEY to your {config_source} for Imagen."
                 st.warning(f"⚠️ {error_msg}")
                 st.info("🔑 Using demo mode instead.")
                 logger.warning(error_msg)

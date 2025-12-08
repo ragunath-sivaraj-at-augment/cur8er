@@ -2,8 +2,58 @@ from typing import Dict, Tuple, List
 import json
 import os
 
+class EnvironmentManager:
+    """Manages environment variables with support for both .env files and Streamlit secrets"""
+    
+    @staticmethod
+    def get_config_value(key: str, default: str = None) -> str:
+        """
+        Get configuration value from either Streamlit secrets or environment variables
+        Priority: Streamlit secrets > Environment variables > Default
+        """
+        try:
+            # Try Streamlit secrets first (for deployed apps)
+            import streamlit as st
+            if hasattr(st, 'secrets') and key in st.secrets:
+                return st.secrets[key]
+        except ImportError:
+            # Streamlit not available, continue to env vars
+            pass
+        except Exception:
+            # Secrets not configured or error accessing them
+            pass
+        
+        # Fall back to environment variables (for local development)
+        value = os.getenv(key, default)
+        return value
+    
+    @staticmethod
+    def is_streamlit_deployment() -> bool:
+        """Check if running in Streamlit Cloud/deployment environment"""
+        try:
+            import streamlit as st
+            return hasattr(st, 'secrets') and bool(st.secrets)
+        except ImportError:
+            return False
+        except Exception:
+            return False
+    
+    @staticmethod
+    def get_all_api_keys() -> Dict[str, str]:
+        """Get all API keys from the environment"""
+        keys = {
+            'OPENAI_API_KEY': EnvironmentManager.get_config_value('OPENAI_API_KEY'),
+            'GOOGLE_API_KEY': EnvironmentManager.get_config_value('GOOGLE_API_KEY'),
+            'NANO_BANANA_API_KEY': EnvironmentManager.get_config_value('NANO_BANANA_API_KEY')
+        }
+        # Filter out None values
+        return {k: v for k, v in keys.items() if v is not None}
+
 class Config:
     """Configuration settings for the ad creator application"""
+    
+    # Environment manager instance
+    env = EnvironmentManager()
     
     # Predefined ad sizes with dimensions
     AD_SIZES = {
