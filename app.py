@@ -616,7 +616,7 @@ def main():
                     st.error("❌ No API key configured for Nano Banana")
                     config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
                     st.warning(f"🔑 Add GOOGLE_API_KEY or NANO_BANANA_API_KEY to {config_source}")
-                    st.error("❌ Cannot generate images without API key")            else:
+                    st.error("❌ Cannot generate images without API key")           
                 st.info(f"ℹ️ {current_model} is in development")
                 st.error("❌ Cannot generate images - API not implemented yet")
             
