@@ -14,8 +14,10 @@ class EnvironmentManager:
         try:
             # Try Streamlit secrets first (for deployed apps)
             import streamlit as st
-            if hasattr(st, 'secrets') and key in st.secrets:
-                return st.secrets[key]
+            if hasattr(st, 'secrets'):
+                secrets_value = st.secrets.get(key)
+                if secrets_value is not None:
+                    return secrets_value
         except ImportError:
             # Streamlit not available, continue to env vars
             pass
@@ -32,7 +34,8 @@ class EnvironmentManager:
         """Check if running in Streamlit Cloud/deployment environment"""
         try:
             import streamlit as st
-            return hasattr(st, 'secrets') and bool(st.secrets)
+            # Check if secrets are available and accessible
+            return hasattr(st, 'secrets') and st.secrets is not None
         except ImportError:
             return False
         except Exception:
@@ -48,6 +51,32 @@ class EnvironmentManager:
         }
         # Filter out None values
         return {k: v for k, v in keys.items() if v is not None}
+    
+    @staticmethod
+    def get_api_keys_explicit() -> Dict[str, str]:
+        """
+        Alternative explicit method for getting API keys (debugging/backup)
+        Uses the exact pattern you suggested for maximum compatibility
+        """
+        try:
+            # Try to get from Streamlit secrets first, then fall back to environment variables
+            import streamlit as st
+            openai_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+            google_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            nano_banana_key = st.secrets.get("NANO_BANANA_API_KEY") or os.getenv("NANO_BANANA_API_KEY")
+        except:
+            # Fallback to environment variables if secrets are not available
+            openai_key = os.getenv("OPENAI_API_KEY")
+            google_key = os.getenv("GOOGLE_API_KEY")
+            nano_banana_key = os.getenv("NANO_BANANA_API_KEY")
+        
+        keys = {
+            'OPENAI_API_KEY': openai_key,
+            'GOOGLE_API_KEY': google_key,
+            'NANO_BANANA_API_KEY': nano_banana_key
+        }
+        # Filter out None/empty values
+        return {k: v for k, v in keys.items() if v}
 
 class Config:
     """Configuration settings for the ad creator application"""

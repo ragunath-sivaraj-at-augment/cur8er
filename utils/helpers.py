@@ -18,6 +18,20 @@ def setup_api_keys():
     config_source = "Streamlit Secrets" if is_streamlit_deployment else "Environment Variables"
     st.sidebar.info(f"📍 Config source: {config_source}")
     
+    # Debug info for troubleshooting
+    with st.sidebar.expander("🔍 API Key Debug Info", expanded=False):
+        st.write(f"**Environment Detection:**")
+        st.write(f"- Streamlit deployment: {is_streamlit_deployment}")
+        st.write(f"- Config source: {config_source}")
+        
+        # Test explicit method too
+        explicit_keys = EnvironmentManager.get_api_keys_explicit()
+        st.write(f"**Explicit method results:**")
+        for key_name, key_value in explicit_keys.items():
+            status = "✅ Found" if key_value else "❌ Missing"
+            masked_value = f"...{key_value[-4:]}" if key_value else "None"
+            st.write(f"- {key_name}: {status} ({masked_value})")
+    
     if openai_key:
         st.sidebar.success("✅ OpenAI API Key configured")
     else:

@@ -124,8 +124,8 @@ class AIImageGenerator:
         
         try:
             # Nano Banana can use Google API key (preferred) or dedicated key
-            google_api_key = os.getenv("GOOGLE_API_KEY")
-            nano_api_key = os.getenv("NANO_BANANA_API_KEY")  # Optional dedicated key
+            google_api_key = EnvironmentManager.get_config_value("GOOGLE_API_KEY")
+            nano_api_key = EnvironmentManager.get_config_value("NANO_BANANA_API_KEY")  # Optional dedicated key
             
             if google_api_key:
                 st.info("🔄 Using Google API key for Nano Banana...")
@@ -189,7 +189,9 @@ class AIImageGenerator:
                 logger.info("Dedicated Nano Banana API key found")
                 return True
             else:
-                st.info("🍌 No API keys configured - using demo mode")
+                config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                st.error(f"🍌 Nano Banana Pro cannot generate images without API key")
+                st.info(f"💡 Add GOOGLE_API_KEY to your {config_source} to use Nano Banana Pro")
                 logger.info("No API keys for Nano Banana")
                 return False
                 

@@ -315,14 +315,26 @@ def main():
                 elif status == "missing_key":
                     st.error(f"❌ {ai_model} cannot generate images without API key")
                     if "DALL-E" in ai_model:
-                        st.info("🔑 Add OPENAI_API_KEY to your .env file")
-                        st.code("OPENAI_API_KEY=sk-your-key-here", language="bash")
+                        config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                        st.info(f"🔑 Add OPENAI_API_KEY to your {config_source}")
+                        if EnvironmentManager.is_streamlit_deployment():
+                            st.code("OPENAI_API_KEY = \"sk-your-key-here\"", language="toml")
+                        else:
+                            st.code("OPENAI_API_KEY=sk-your-key-here", language="bash")
                     elif "Imagen" in ai_model:
-                        st.info("🔑 Add GOOGLE_API_KEY to your .env file (same as Gemini)")
-                        st.code("GOOGLE_API_KEY=your-google-key-here", language="bash")
+                        config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                        st.info(f"🔑 Add GOOGLE_API_KEY to your {config_source} (same as Gemini)")
+                        if EnvironmentManager.is_streamlit_deployment():
+                            st.code("GOOGLE_API_KEY = \"your-google-key-here\"", language="toml")
+                        else:
+                            st.code("GOOGLE_API_KEY=your-google-key-here", language="bash")
                     elif "Nano Banana" in ai_model:
-                        st.info("🔑 Add GOOGLE_API_KEY to your .env file")
-                        st.code("GOOGLE_API_KEY=your-google-key-here", language="bash")
+                        config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                        st.info(f"🔑 Add GOOGLE_API_KEY to your {config_source}")
+                        if EnvironmentManager.is_streamlit_deployment():
+                            st.code("GOOGLE_API_KEY = \"your-google-key-here\"", language="toml")
+                        else:
+                            st.code("GOOGLE_API_KEY=your-google-key-here", language="bash")
                 elif status == "coming_soon":
                     st.error(f"❌ {ai_model} integration is in development - cannot generate images")
         
@@ -571,39 +583,40 @@ def main():
             
             # Check API keys based on selected model
             if "DALL-E" in current_model:
-                api_key = os.getenv("OPENAI_API_KEY")
+                api_key = EnvironmentManager.get_config_value("OPENAI_API_KEY")
                 if api_key:
                     st.success(f"✅ OpenAI API Key found (ends with: ...{api_key[-4:]})")
                     st.write(f"**API Key Length:** {len(api_key)} characters")
                     st.write(f"**Starts with:** {api_key[:7]}...")
                 else:
                     st.error("❌ No OpenAI API Key found")
-                    st.warning("Make sure you have a .env file with OPENAI_API_KEY=your_key")
+                    config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                    st.warning(f"Make sure you have a {config_source} with OPENAI_API_KEY=your_key")
             
             elif "Gemini" in current_model:
-                api_key = os.getenv("GOOGLE_API_KEY")
+                api_key = EnvironmentManager.get_config_value("GOOGLE_API_KEY")
                 if api_key:
                     st.success(f"✅ Google API Key found (ends with: ...{api_key[-4:]})")
                     st.write(f"**API Key Length:** {len(api_key)} characters")
                     st.write(f"**Starts with:** {api_key[:7]}...")
                 else:
                     st.error("❌ No Google API Key found")
-                    st.warning("Make sure you have a .env file with GOOGLE_API_KEY=your_key")
+                    config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                    st.warning(f"Make sure you have a {config_source} with GOOGLE_API_KEY=your_key")
             
             elif "Nano Banana" in current_model:
-                google_key = os.getenv("GOOGLE_API_KEY")
-                nano_key = os.getenv("NANO_BANANA_API_KEY")
+                google_key = EnvironmentManager.get_config_value("GOOGLE_API_KEY")
+                nano_key = EnvironmentManager.get_config_value("NANO_BANANA_API_KEY")
                 if google_key:
-                    st.success(f"✅ Using Google API Key for Nano Banana (ends with: ...{google_key[-4:]})") 
+                    st.success(f"✅ Using Google API Key for Nano Banana (ends with: ...{google_key[-4:]})")
                     st.info("💡 Nano Banana uses the same Google API key as Imagen")
                 elif nano_key:
                     st.success(f"✅ Dedicated Nano Banana API Key found (ends with: ...{nano_key[-4:]})")
                 else:
                     st.error("❌ No API key configured for Nano Banana")
-                    st.warning("🔑 Add GOOGLE_API_KEY or NANO_BANANA_API_KEY to .env file")
-                    st.error("❌ Cannot generate images without API key")
-            
-            else:
+                    config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                    st.warning(f"🔑 Add GOOGLE_API_KEY or NANO_BANANA_API_KEY to {config_source}")
+                    st.error("❌ Cannot generate images without API key")            else:
                 st.info(f"ℹ️ {current_model} is in development")
                 st.error("❌ Cannot generate images - API not implemented yet")
             
@@ -1144,15 +1157,16 @@ def test_api_connection(model_name=None):
                 logger.error(error_msg)
         
         elif "Nano Banana" in model_name:
-            google_key = os.getenv("GOOGLE_API_KEY")
-            nano_key = os.getenv("NANO_BANANA_API_KEY")
+            google_key = EnvironmentManager.get_config_value("GOOGLE_API_KEY")
+            nano_key = EnvironmentManager.get_config_value("NANO_BANANA_API_KEY")
             if google_key or nano_key:
                 st.info(f"🍌 {model_name} API key found but API not implemented yet")
                 st.error("❌ Cannot generate images - API integration in development")
                 logger.info(f"{model_name} API key configured but not implemented")
             else:
                 st.error(f"❌ {model_name} API not configured and integration not complete")
-                st.error("❌ Cannot generate images without API key")
+                config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                st.error(f"❌ Cannot generate images without API key - Add GOOGLE_API_KEY to {config_source}")
                 logger.error(f"{model_name} no API access")
         
         else:
