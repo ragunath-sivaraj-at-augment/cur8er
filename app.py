@@ -605,6 +605,22 @@ def main():
             elif "Nano Banana" in current_model:
                 google_key = EnvironmentManager.get_config_value("GOOGLE_API_KEY")
                 nano_key = EnvironmentManager.get_config_value("NANO_BANANA_API_KEY")
+                
+                # Add debug output to see what's being retrieved
+                with st.expander("🔍 Secrets Debug Info"):
+                    st.write(f"**Google Key Found:** {bool(google_key)}")
+                    if google_key:
+                        st.write(f"**Google Key (masked):** ...{google_key[-4:]}")
+                    st.write(f"**Nano Key Found:** {bool(nano_key)}")
+                    st.write(f"**Is Streamlit Deployment:** {EnvironmentManager.is_streamlit_deployment()}")
+                    try:
+                        import streamlit as st_check
+                        st.write(f"**st.secrets available:** {hasattr(st_check, 'secrets')}")
+                        if hasattr(st_check, 'secrets'):
+                            st.write(f"**GOOGLE_API_KEY in secrets:** {'GOOGLE_API_KEY' in st_check.secrets}")
+                    except:
+                        pass
+                
                 if google_key:
                     st.success(f"✅ Using Google API Key for Nano Banana (ends with: ...{google_key[-4:]})")
                     st.info("💡 Nano Banana uses the same Google API key as Imagen")
@@ -614,9 +630,7 @@ def main():
                     st.error("❌ No API key configured for Nano Banana")
                     config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
                     st.warning(f"🔑 Add GOOGLE_API_KEY or NANO_BANANA_API_KEY to {config_source}")
-                    st.error("❌ Cannot generate images without API key")           
-                st.info(f"ℹ️ {current_model} is in development")
-                st.error("❌ Cannot generate images - API not implemented yet")
+                    st.error("❌ Cannot generate images without API key")
             
             st.write("**Session State:**")
             st.write(f"- Generated Ad: {'Yes' if st.session_state.get('generated_ad') else 'No'}")
