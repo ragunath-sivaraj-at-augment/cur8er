@@ -1077,10 +1077,12 @@ def test_api_connection(model_name=None):
         if "DALL-E" in model_name:
             from openai import OpenAI
             
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = EnvironmentManager.get_config_value("OPENAI_API_KEY")
             if not api_key:
                 error_msg = f"No OpenAI API key found for {model_name}"
                 st.error(f"❌ {error_msg}")
+                config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                st.info(f"🔑 Add OPENAI_API_KEY to your {config_source}")
                 logger.error(error_msg)
                 return
             
@@ -1113,12 +1115,13 @@ def test_api_connection(model_name=None):
                         st.warning("🔐 API key might be invalid or expired")
         
         elif "Imagen" in model_name:
-            api_key = os.getenv("GOOGLE_API_KEY")
+            api_key = EnvironmentManager.get_config_value("GOOGLE_API_KEY")
             
             if not api_key:
                 error_msg = f"No Google API key found for {model_name}"
                 st.error(f"❌ {error_msg}")
-                st.info("🔑 Add GOOGLE_API_KEY to your .env file")
+                config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
+                st.info(f"🔑 Add GOOGLE_API_KEY to your {config_source}")
                 logger.error(error_msg)
                 return
             
@@ -1159,14 +1162,60 @@ def test_api_connection(model_name=None):
         elif "Nano Banana" in model_name:
             google_key = EnvironmentManager.get_config_value("GOOGLE_API_KEY")
             nano_key = EnvironmentManager.get_config_value("NANO_BANANA_API_KEY")
-            if google_key or nano_key:
-                st.info(f"🍌 {model_name} API key found but API not implemented yet")
-                st.error("❌ Cannot generate images - API integration in development")
-                logger.info(f"{model_name} API key configured but not implemented")
+            
+            if google_key:
+                # Test the Google API key that Nano Banana uses
+                try:
+                    import google.generativeai as genai
+                    
+                    with st.spinner(f"🔍 Testing {model_name} API connection..."):
+                        try:
+                            # Configure and test the Google API that Nano Banana uses
+                            genai.configure(api_key=google_key)
+                            
+                            # Test with a simple model call
+                            model = genai.GenerativeModel('gemini-pro')
+                            response = model.generate_content("Hello")
+                            
+                            success_msg = f"{model_name} API connection successful!"
+                            st.success(f"✅ {success_msg}")
+                            st.info(f"🍌 Using Google API key for Nano Banana (ends with: ...{google_key[-4:]})")
+                            st.info("💡 Nano Banana Pro uses Google's AI services")
+                            logger.info(f"API test successful for {model_name}")
+                            
+                        except Exception as api_error:
+                            error_msg = f"{model_name} API connection failed: {str(api_error)}"
+                            st.error(f"❌ {error_msg}")
+                            logger.error(f"API test failed for {model_name}: {str(api_error)}")
+                            
+                            if "quota" in str(api_error).lower():
+                                st.warning("💳 This might be a quota/billing issue")
+                            elif "invalid" in str(api_error).lower():
+                                st.warning("🔑 Check if your Google API key is correct")
+                            elif "permission" in str(api_error).lower():
+                                st.warning("🔐 Check your Google API permissions")
+                
+                except ImportError:
+                    error_msg = f"Google Generative AI library not installed for {model_name}"
+                    st.error(f"❌ {error_msg}")
+                    st.info("📦 Install with: pip install google-generativeai")
+                    logger.error(error_msg)
+                    
+            elif nano_key:
+                st.success(f"✅ {model_name} dedicated API key found!")
+                st.info(f"🍌 Dedicated API key (ends with: ...{nano_key[-4:]})")
+                st.warning("🔧 Direct Nano Banana API integration in development")
+                logger.info(f"{model_name} dedicated API key configured")
+                
             else:
-                st.error(f"❌ {model_name} API not configured and integration not complete")
+                st.error(f"❌ No API key configured for {model_name}")
                 config_source = "Streamlit secrets" if EnvironmentManager.is_streamlit_deployment() else ".env file"
-                st.error(f"❌ Cannot generate images without API key - Add GOOGLE_API_KEY to {config_source}")
+                st.error(f"🍌 Nano Banana Pro cannot generate images without API key")
+                st.info(f"🔑 Add GOOGLE_API_KEY to your {config_source}")
+                if EnvironmentManager.is_streamlit_deployment():
+                    st.code('GOOGLE_API_KEY = "your-google-key-here"', language="toml")
+                else:
+                    st.code('GOOGLE_API_KEY=your-google-key-here', language="bash")
                 logger.error(f"{model_name} no API access")
         
         else:
