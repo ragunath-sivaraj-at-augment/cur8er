@@ -10,13 +10,17 @@ from utils.config import Config, EnvironmentManager
 from utils.helpers import display_model_info, validate_inputs, suggest_prompt_improvements
 from utils.template_manager import TemplateManager
 from utils.prompts import PromptBuilder
+from utils.image_editor import show_image_editor
 # Commented out: setup_api_keys, show_generation_tips, display_usage_stats
 
 # Load environment variables from .env file only for local development
 try:
-    if not EnvironmentManager.is_streamlit_deployment():
-        from dotenv import load_dotenv
-        load_dotenv()
+    # Always try to load .env first (it won't override existing env vars)
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    # Double check: if we're in Streamlit Cloud with secrets, those take priority
+    # (EnvironmentManager handles the priority automatically)
 except ImportError:
     # dotenv not available, skip loading
     pass
@@ -71,10 +75,28 @@ if 'client_logo' not in st.session_state:
     st.session_state.client_logo = None
 if 'show_template_editor' not in st.session_state:
     st.session_state.show_template_editor = False
+if 'show_image_editor' not in st.session_state:
+    st.session_state.show_image_editor = False
 
 def main():
     st.title("🎨 Cur8er")
     st.markdown("Create stunning advertisements with AI-powered image generation")
+    
+    # Image Editor Interface (Full Width)
+    if st.session_state.get('show_image_editor', False):
+        st.markdown("---")
+        st.header("🎨 Image Editor")
+        
+        # Close button at the top
+        if st.button("❌ Close Editor", key="close_image_editor"):
+            st.session_state.show_image_editor = False
+            st.rerun()
+        
+        # Show Filerobot Image Editor
+        show_image_editor()
+        
+        # Don't show the main content when editor is open
+        st.stop()
     
     # Template Editor Interface (Full Width)
     if st.session_state.get('show_template_editor', False):
@@ -542,7 +564,12 @@ def main():
                 if st.session_state.generation_params:
                     regenerate_ad()
             
-            # Edit button
+            # Edit Image button (Filerobot)
+            if st.button("🎨 Edit Image", use_container_width=True):
+                st.session_state.show_image_editor = True
+                st.rerun()
+            
+            # Edit Prompt button
             if st.button("✏️ Edit Prompt", use_container_width=True):
                 st.session_state.edit_mode = True
                 st.rerun()

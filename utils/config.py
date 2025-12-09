@@ -34,8 +34,16 @@ class EnvironmentManager:
         """Check if running in Streamlit Cloud/deployment environment"""
         try:
             import streamlit as st
-            # Check if secrets are available and accessible
-            return hasattr(st, 'secrets') and st.secrets is not None
+            # Check if secrets are available AND have content
+            # Empty secrets means local dev, not cloud deployment
+            if hasattr(st, 'secrets') and st.secrets is not None:
+                # Try to access secrets - if they have keys, we're in cloud
+                try:
+                    # If secrets has any keys, we're likely in Streamlit Cloud
+                    return len(st.secrets) > 0
+                except:
+                    return False
+            return False
         except ImportError:
             return False
         except Exception:
