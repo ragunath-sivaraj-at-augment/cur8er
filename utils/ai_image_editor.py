@@ -48,29 +48,29 @@ def show_ai_image_editor():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("🎨 Change Text Color", use_container_width=True):
+        if st.button("🎨 Change Text Color", width='stretch'):
             st.session_state.edit_preset = "Change the text color to black with white outline for better readability"
     
     with col2:
-        if st.button("🌈 Enhance Colors", use_container_width=True):
+        if st.button("🌈 Enhance Colors", width='stretch'):
             st.session_state.edit_preset = "Make the colors more vibrant and eye-catching, increase saturation and contrast"
     
     with col3:
-        if st.button("✨ Professional Polish", use_container_width=True):
+        if st.button("✨ Professional Polish", width='stretch'):
             st.session_state.edit_preset = "Add professional polish with subtle shadows, lighting effects, and refined typography"
     
     col4, col5, col6 = st.columns(3)
     
     with col4:
-        if st.button("🔆 Brighten Image", use_container_width=True):
+        if st.button("🔆 Brighten Image", width='stretch'):
             st.session_state.edit_preset = "Brighten the overall image, increase exposure and make it more vibrant"
     
     with col5:
-        if st.button("🎭 Change Background", use_container_width=True):
+        if st.button("🎭 Change Background", width='stretch'):
             st.session_state.edit_preset = "Change the background to a gradient from blue to purple, keep all other elements the same"
     
     with col6:
-        if st.button("📐 Reposition Elements", use_container_width=True):
+        if st.button("📐 Reposition Elements", width='stretch'):
             st.session_state.edit_preset = "Move the main text to the top center and the button to the bottom, keep everything else the same"
     
     st.markdown("---")
@@ -144,7 +144,7 @@ def show_ai_image_editor():
     # Edit button
     col1, col2, col3 = st.columns([2, 1, 2])
     with col2:
-        edit_button = st.button("✨ Apply AI Edit", type="primary", use_container_width=True)
+        edit_button = st.button("✨ Apply AI Edit", type="primary", width='stretch')
     
     if edit_button:
         if not modification_prompt.strip():
@@ -196,7 +196,7 @@ def show_ai_image_editor():
                     col1, col2, col3 = st.columns([1, 1, 1])
                     
                     with col1:
-                        if st.button("✅ Keep Edited Version", type="primary", use_container_width=True):
+                        if st.button("✅ Keep Edited Version", type="primary", width='stretch'):
                             st.session_state.generated_ad = edited_image
                             
                             # Save to file
@@ -216,12 +216,12 @@ def show_ai_image_editor():
                             st.balloons()
                     
                     with col2:
-                        if st.button("🔄 Try Another Edit", use_container_width=True):
+                        if st.button("🔄 Try Another Edit", width='stretch'):
                             st.session_state.generated_ad = edited_image
                             st.rerun()
                     
                     with col3:
-                        if st.button("❌ Discard Changes", use_container_width=True):
+                        if st.button("❌ Discard Changes", width='stretch'):
                             if 'ai_edited_image' in st.session_state:
                                 del st.session_state.ai_edited_image
                             st.info("Changes discarded. Original image preserved.")

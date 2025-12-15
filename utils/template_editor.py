@@ -216,7 +216,7 @@ def show_template_editor():
                     }
                     dimensions = dim_map[dimensions_preset]
                 
-                submitted = st.form_submit_button("🎨 Create Template", use_container_width=True)
+                submitted = st.form_submit_button("🎨 Create Template", width='stretch')
                 if submitted and template_name:
                     template = manager.create_template(template_name, dimensions)
                     st.session_state.editing_template = template
@@ -228,7 +228,7 @@ def show_template_editor():
             if custom_templates:
                 selected_template = st.selectbox("Select Template to Edit:", custom_templates)
                 
-                if st.button("✏️ Load Template", use_container_width=True):
+                if st.button("✏️ Load Template", width='stretch'):
                     template = manager.load_template(selected_template)
                     if template:
                         st.session_state.editing_template = template
@@ -481,7 +481,7 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
         
         # Save template
         st.markdown("---")
-        if st.button("💾 Save Template", use_container_width=True, type="primary"):
+        if st.button("💾 Save Template", width='stretch', type="primary"):
             if manager.save_template(template):
                 st.success(f"✅ Template '{template.name}' saved successfully!")
                 st.balloons()

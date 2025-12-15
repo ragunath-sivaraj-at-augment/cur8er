@@ -188,13 +188,13 @@ def main():
                         format_func=lambda x: templates[x]
                     )
                 with template_col2:
-                    if st.button("✏️ Edit", help="Edit templates", use_container_width=True):
+                    if st.button("✏️ Edit", help="Edit templates", width='stretch'):
                         st.session_state.show_template_editor = True
                         st.rerun()
             else:
                 selected_template = None
                 st.info("No templates available. Create templates using the Template Editor.")
-                if st.button("🎨 Create Template", use_container_width=True):
+                if st.button("🎨 Create Template", width='stretch'):
                     st.session_state.show_template_editor = True
                     st.rerun()
         else:
@@ -495,7 +495,7 @@ def main():
             st.markdown("### Preview")
             st.image(
                 st.session_state.generated_ad,
-                use_container_width=True
+                width='stretch'
             )
             
             # Ad information
@@ -601,7 +601,7 @@ def main():
         st.header("🎨 Actions")
         
         # Generate button (always at top)
-        if st.button("🚀 Generate Ad", type="primary", use_container_width=True):
+        if st.button("🚀 Generate Ad", type="primary", width='stretch'):
             # Validate inputs - only client name is required
             if not company_name.strip():
                 st.error("⚠️ Please enter a company name to generate the advertisement.")
@@ -676,24 +676,24 @@ def main():
             st.subheader("🔄 Quick Actions")
             
             # Refresh button
-            if st.button("🔄 Refresh", use_container_width=True):
+            if st.button("🔄 Refresh", width='stretch'):
                 if st.session_state.generation_params:
                     regenerate_ad()
             
             # AI Edit button (DALL-E only)
             model_name = st.session_state.generation_params.get("model", "")
             if "DALL-E" in model_name:
-                if st.button("✨ AI Edit (DALL-E)", use_container_width=True, help="Edit image using AI with natural language prompts"):
+                if st.button("✨ AI Edit (DALL-E)", width='stretch', help="Edit image using AI with natural language prompts"):
                     st.session_state.show_ai_image_editor = True
                     st.rerun()
             
             # Edit Image button (Filerobot - Manual editing)
-            if st.button("🎨 Manual Edit", use_container_width=True, help="Edit image manually with visual tools"):
+            if st.button("🎨 Manual Edit", width='stretch', help="Edit image manually with visual tools"):
                 st.session_state.show_image_editor = True
                 st.rerun()
             
             # Edit Image by Prompt button
-            if st.button("✏️ Edit Image by Prompt", use_container_width=True, help="Modify image using text prompt with AI"):
+            if st.button("✏️ Edit Image by Prompt", width='stretch', help="Modify image using text prompt with AI"):
                 st.session_state.edit_by_prompt_mode = not st.session_state.edit_by_prompt_mode
                 st.rerun()
             
@@ -713,7 +713,7 @@ def main():
                 
                 col1, col2 = st.columns([1, 1])
                 with col1:
-                    if st.button("🚀 Generate Edited Image", type="primary", use_container_width=True):
+                    if st.button("🚀 Generate Edited Image", type="primary", width='stretch'):
                         if edit_prompt.strip():
                             # Use the current generated image as reference
                             reference_images = [st.session_state.generated_ad]
@@ -747,7 +747,7 @@ def main():
                             st.error("❌ Please enter a modification prompt")
                 
                 with col2:
-                    if st.button("❌ Cancel", use_container_width=True):
+                    if st.button("❌ Cancel", width='stretch'):
                         st.session_state.edit_by_prompt_mode = False
                         st.rerun()
             
@@ -872,12 +872,12 @@ def main():
             # Utility buttons
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("🗑️ Clear Session", use_container_width=True):
+                if st.button("🗑️ Clear Session", width='stretch'):
                     st.session_state.clear()
                     st.success("Session data cleared!")
                     st.rerun()
             with col2:
-                if st.button("🔄 Test API", use_container_width=True):
+                if st.button("🔄 Test API", width='stretch'):
                     current_model = st.session_state.get('selected_model', 'DALL-E 3')
                     test_api_connection(current_model)
 
@@ -907,7 +907,7 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
     # Add cancel button with better layout
     cancel_col, spacer_col = st.columns([2, 3])
     with cancel_col:
-        if st.button("🛑 Cancel", key="cancel_gen", disabled=False, use_container_width=True):
+        if st.button("🛑 Cancel", key="cancel_gen", disabled=False, width='stretch'):
             st.warning("⚠️ Generation cancelled by user")
             st.stop()
     
@@ -1075,7 +1075,7 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                     logo_description = analyze_logo_details(logo) if logo else ""
                     enhanced_prompt = build_enhanced_prompt(
                         prompt, client_name, client_website, medium, style, color_scheme, 
-                        include_text, include_cta, dimensions, logo_description
+                        include_text, include_cta, dimensions, logo_description, client_tagline
                     )
                     
                     with st.expander("🔍 Enhanced Prompt (Debug)"):
@@ -1221,11 +1221,11 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                 st.error(f"Error generating advertisement: {str(e)}")
                 st.error("Please check your API key configuration and internet connection.")
 
-def build_enhanced_prompt(prompt, client_name, client_website, medium, style, color_scheme, include_text, include_cta, dimensions, logo_description=""):
+def build_enhanced_prompt(prompt, client_name, client_website, medium, style, color_scheme, include_text, include_cta, dimensions, logo_description="", client_tagline=""):
     """Build enhanced prompt with context and medium-specific optimizations"""
     return PromptBuilder.build_enhanced_prompt(
         prompt, client_name, client_website, medium, style, 
-        color_scheme, include_text, include_cta, dimensions, logo_description
+        color_scheme, include_text, include_cta, dimensions, logo_description, client_tagline
     )
 
 def regenerate_ad():
@@ -1331,7 +1331,7 @@ def download_ad_with_format(format_type):
             data=img_bytes,
             file_name=filename,
             mime=mime_type,
-            use_container_width=True
+            width='stretch'
         )
 
 def download_ad():

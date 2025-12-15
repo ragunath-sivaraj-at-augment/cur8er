@@ -242,7 +242,7 @@ def show_image_editor():
                 st.image(edited_image, use_column_width=True)
             
             # Confirm button
-            if st.button("✅ Replace with Edited Image", type="primary", use_container_width=True):
+            if st.button("✅ Replace with Edited Image", type="primary", width='stretch'):
                 # Update session state
                 st.session_state.generated_ad = edited_image
                 

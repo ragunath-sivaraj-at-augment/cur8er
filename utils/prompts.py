@@ -157,13 +157,17 @@ class PromptBuilder:
     @staticmethod
     def build_enhanced_prompt(prompt, client_name, client_website, medium, style, 
                             color_scheme, include_text, include_cta, dimensions, 
-                            logo_description=""):
+                            logo_description="", client_tagline=""):
         """Build enhanced prompt for non-template generation with strong company name emphasis"""
         enhanced_parts = [PromptTemplates.ENHANCED_PROMPT_BASE.format(client_name=client_name)]
         
         # Add company name requirements FIRST
         for requirement in PromptTemplates.COMPANY_NAME_REQUIREMENTS:
             enhanced_parts.append(requirement.format(client_name=client_name))
+        
+        # Add tagline if provided
+        if client_tagline and client_tagline.strip():
+            enhanced_parts.append(f"Include the tagline: '{client_tagline}' beneath or near the company name '{client_name}'.")
         
         # Medium-specific enhancements
         medium_lower = medium.lower()
