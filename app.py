@@ -11,6 +11,7 @@ from utils.helpers import display_model_info, validate_inputs, suggest_prompt_im
 from utils.template_manager import TemplateManager
 from utils.prompts import PromptBuilder
 from utils.image_editor import show_image_editor
+from utils.ai_image_editor import show_ai_image_editor
 # Commented out: setup_api_keys, show_generation_tips, display_usage_stats
 
 # Load environment variables from .env file only for local development
@@ -77,10 +78,30 @@ if 'show_template_editor' not in st.session_state:
     st.session_state.show_template_editor = False
 if 'show_image_editor' not in st.session_state:
     st.session_state.show_image_editor = False
+if 'show_ai_image_editor' not in st.session_state:
+    st.session_state.show_ai_image_editor = False
+if 'edit_by_prompt_mode' not in st.session_state:
+    st.session_state.edit_by_prompt_mode = False
 
 def main():
     st.title("🎨 Cur8er")
     st.markdown("Create stunning advertisements with AI-powered image generation")
+    
+    # AI Image Editor Interface (Full Width)
+    if st.session_state.get('show_ai_image_editor', False):
+        st.markdown("---")
+        st.header("✨ AI Image Editor")
+        
+        # Close button at the top
+        if st.button("❌ Close AI Editor", key="close_ai_image_editor"):
+            st.session_state.show_ai_image_editor = False
+            st.rerun()
+        
+        # Show AI Image Editor
+        show_ai_image_editor()
+        
+        # Don't show the main content when editor is open
+        st.stop()
     
     # Image Editor Interface (Full Width)
     if st.session_state.get('show_image_editor', False):
@@ -238,10 +259,15 @@ def main():
                 for i, ref_img in enumerate(reference_images[:4]):
                     with preview_cols[i % 4]:
                         try:
-                            img = Image.open(ref_img)
-                            st.image(img, caption=f"Ref {i+1}", width=80)
+                            # Handle PIL Image directly
+                            if isinstance(ref_img, Image.Image):
+                                st.image(ref_img, caption=f"Ref {i+1}", width=80)
+                            else:
+                                img = Image.open(ref_img)
+                                st.image(img, caption=f"Ref {i+1}", width=80)
                         except:
-                            st.text(f"Ref {i+1}: {ref_img.name}")
+                            img_name = ref_img.name if hasattr(ref_img, 'name') else f"Image {i+1}"
+                            st.text(f"Ref {i+1}: {img_name}")
                 if len(reference_images) > 4:
                     st.info(f"... and {len(reference_images) - 4} more reference images")
         
@@ -564,15 +590,90 @@ def main():
                 if st.session_state.generation_params:
                     regenerate_ad()
             
-            # Edit Image button (Filerobot)
-            if st.button("🎨 Edit Image", use_container_width=True):
+            # AI Edit button (DALL-E only)
+            model_name = st.session_state.generation_params.get("model", "")
+            if "DALL-E" in model_name:
+                if st.button("✨ AI Edit (DALL-E)", use_container_width=True, help="Edit image using AI with natural language prompts"):
+                    st.session_state.show_ai_image_editor = True
+                    st.rerun()
+            
+            # Edit Image button (Filerobot - Manual editing)
+            if st.button("🎨 Manual Edit", use_container_width=True, help="Edit image manually with visual tools"):
                 st.session_state.show_image_editor = True
                 st.rerun()
             
-            # Edit Prompt button
-            if st.button("✏️ Edit Prompt", use_container_width=True):
-                st.session_state.edit_mode = True
+            # Edit Image by Prompt button
+            if st.button("✏️ Edit Image by Prompt", use_container_width=True, help="Modify image using text prompt with AI"):
+                st.session_state.edit_by_prompt_mode = not st.session_state.edit_by_prompt_mode
                 st.rerun()
+            
+            # Show edit prompt input if enabled
+            if st.session_state.get('edit_by_prompt_mode', False):
+                st.markdown("---")
+                st.markdown("#### ✏️ Edit Image by Prompt")
+                st.info("💡 Describe how you want to modify the current image. The AI will use your last generated image as reference.")
+                st.info("ℹ️ All original settings (company name, size, style, logo, etc.) will be preserved - only the prompt changes.")
+                
+                # Show what settings will be preserved
+                params = st.session_state.generation_params
+                with st.expander("🔍 Settings Being Preserved"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Company:** {params.get('client_name', 'N/A')}")
+                        st.write(f"**Medium:** {params.get('medium', 'N/A')}")
+                        st.write(f"**Style:** {params.get('style', 'N/A')}")
+                        st.write(f"**Color Scheme:** {params.get('color_scheme', 'N/A')}")
+                    with col2:
+                        st.write(f"**Size:** {params.get('dimensions', (1024, 1024))}")
+                        st.write(f"**Model:** {params.get('model', 'N/A')}")
+                        st.write(f"**Logo:** {'Yes' if params.get('logo_uploaded') else 'No'}")
+                        st.write(f"**Template:** {params.get('template_name', 'None')}")
+                
+                edit_prompt = st.text_area(
+                    "Modification Prompt:",
+                    height=100,
+                    placeholder="Example: Move the button to the top of the image, Change text color to black, Make the background gradient blue to purple",
+                    help="Describe the specific changes you want to make to the current image",
+                    key="edit_by_prompt_input"
+                )
+                
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button("🚀 Generate Edited Image", type="primary", use_container_width=True):
+                        if edit_prompt.strip():
+                            # Use the current generated image as reference
+                            reference_images = [st.session_state.generated_ad]
+                            
+                            # Get current generation parameters
+                            params = st.session_state.generation_params
+                            
+                            # Retrieve the logo from session state
+                            logo_to_use = st.session_state.client_logo
+                            
+                            # Generate with edit prompt and reference image, preserving all settings
+                            generate_ad(
+                                edit_prompt,  # Use edit prompt instead of original custom prompt
+                                params.get("client_name", ""),
+                                params.get("client_website", ""),
+                                params.get("client_tagline", ""),
+                                params.get("dimensions", (1024, 1024)),
+                                params.get("medium", "Instagram Post"),
+                                params.get("model", "DALL-E 3"),
+                                params.get("style", "Modern & Minimalist"),
+                                params.get("color_scheme", "Brand Colors"),
+                                params.get("include_text", True),
+                                params.get("include_cta", True),
+                                logo_to_use,  # Use the stored logo from session state
+                                params.get("template_used"),  # Use the same template if one was used
+                                reference_images  # Use current image as reference
+                            )
+                        else:
+                            st.error("❌ Please enter a modification prompt")
+                
+                with col2:
+                    if st.button("❌ Cancel", use_container_width=True):
+                        st.session_state.edit_by_prompt_mode = False
+                        st.rerun()
             
             st.divider()
             
@@ -807,13 +908,18 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                         if reference_images:
                             for i, ref_img in enumerate(reference_images):
                                 try:
+                                    # Handle PIL Image objects directly (e.g., from session state)
+                                    if isinstance(ref_img, Image.Image):
+                                        all_reference_images.append(ref_img)
+                                        st.info(f"✅ Reference image {i+1}: Using PIL Image directly")
                                     # Handle Streamlit UploadedFile properly
-                                    if hasattr(ref_img, 'seek') and hasattr(ref_img, 'read'):
+                                    elif hasattr(ref_img, 'seek') and hasattr(ref_img, 'read'):
                                         ref_img.seek(0)  # Reset file pointer
                                         ref_pil = Image.open(ref_img)
                                         all_reference_images.append(ref_pil)
+                                        st.info(f"✅ Reference image {i+1}: Loaded from uploaded file")
                                     else:
-                                        st.warning(f"⚠️ Reference image {i+1}: Invalid file object")
+                                        st.warning(f"⚠️ Reference image {i+1}: Invalid file object type: {type(ref_img)}")
                                 except Exception as ref_error:
                                     st.warning(f"⚠️ Could not process reference image {i+1}: {ref_error}")
                         
@@ -845,7 +951,9 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                             ref_descriptions = []
                             for i, ref_img in enumerate(reference_images[:5]):  # Limit to 5 for prompt
                                 try:
-                                    ref_img.seek(0)
+                                    # Only try to seek if it's a file-like object
+                                    if hasattr(ref_img, 'seek'):
+                                        ref_img.seek(0)
                                     # Add reference guidance to prompt
                                     ref_descriptions.append(f"reference style {i+1}")
                                 except:
@@ -915,13 +1023,18 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                         if reference_images:
                             for i, ref_img in enumerate(reference_images):
                                 try:
+                                    # Handle PIL Image objects directly (e.g., from session state)
+                                    if isinstance(ref_img, Image.Image):
+                                        all_reference_images.append(ref_img)
+                                        st.info(f"✅ Reference image {i+1}: Using PIL Image directly")
                                     # Handle Streamlit UploadedFile properly
-                                    if hasattr(ref_img, 'seek') and hasattr(ref_img, 'read'):
+                                    elif hasattr(ref_img, 'seek') and hasattr(ref_img, 'read'):
                                         ref_img.seek(0)  # Reset file pointer
                                         ref_pil = Image.open(ref_img)
                                         all_reference_images.append(ref_pil)
+                                        st.info(f"✅ Reference image {i+1}: Loaded from uploaded file")
                                     else:
-                                        st.warning(f"⚠️ Reference image {i+1}: Invalid file object")
+                                        st.warning(f"⚠️ Reference image {i+1}: Invalid file object type: {type(ref_img)}")
                                 except Exception as ref_error:
                                     st.warning(f"⚠️ Could not process reference image {i+1}: {ref_error}")
                         
@@ -952,7 +1065,9 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                             ref_descriptions = []
                             for i, ref_img in enumerate(reference_images[:5]):  # Limit to 5 for prompt
                                 try:
-                                    ref_img.seek(0)
+                                    # Only try to seek if it's a file-like object
+                                    if hasattr(ref_img, 'seek'):
+                                        ref_img.seek(0)
                                     # Add reference guidance to prompt
                                     ref_descriptions.append(f"reference style {i+1}")
                                 except:
@@ -997,9 +1112,12 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                         "include_text": include_text,
                         "include_cta": include_cta,
                         "logo_uploaded": logo is not None,
-                        "logo_filename": logo.name if logo else None,
+                        "logo_filename": logo.name if logo and hasattr(logo, 'name') else "uploaded_logo.png",
                         "reference_images_count": len(reference_images) if reference_images else 0,
-                        "reference_images_names": [img.name for img in reference_images] if reference_images else [],
+                        "reference_images_names": [
+                            img.name if hasattr(img, 'name') else f"reference_image_{i+1}.png" 
+                            for i, img in enumerate(reference_images)
+                        ] if reference_images else [],
                         "nano_banana_features": {
                             "search_grounding": "Nano Banana Pro" in model,
                             "text_rendering": "Nano Banana Pro" in model,

@@ -5,12 +5,16 @@ A powerful Streamlit application for creating professional advertisements using 
 ## Features
 
 - **Multiple Ad Sizes**: Support for various social media and print formats
-- **AI Image Generation**: Integration with DALL-E 3, DALL-E 2, and Stable Diffusion
+- **AI Image Generation**: Integration with DALL-E 3, DALL-E 2, Google Imagen, and Nano Banana Pro
+- **AI Image Editing**: Edit generated images using natural language prompts (DALL-E models)
+- **Manual Image Editor**: Professional editing tools via Filerobot integration
 - **Client Logo Upload**: Upload and integrate client logos into advertisements  
 - **Customizable Prompts**: Detailed prompt input for creative control
 - **Style Presets**: Pre-defined styles like Modern, Vintage, Professional, etc.
+- **Template System**: Create and use custom templates for consistent branding
 - **Export Options**: Download in PNG, JPG, or PDF formats
 - **Real-time Preview**: Instant preview of generated advertisements
+- **Dual Environment Support**: Works locally with .env and on Streamlit Cloud with secrets
 
 ## Installation
 
@@ -57,9 +61,44 @@ streamlit run app.py
    - Use "Refresh" to regenerate with the same settings
    - Use "Edit Prompt" to modify and regenerate
 
-4. **Download Results**:
+4. **Edit Your Image** (Optional):
+   - **AI Edit (DALL-E only)**: Use natural language to modify your image
+     - Example: "Change the text color to black"
+     - Example: "Make the background gradient from blue to purple"
+     - Example: "Move the logo to the top right corner"
+   - **Manual Edit**: Use visual editing tools (Filerobot)
+     - Add text, shapes, filters, and effects
+     - Resize, crop, and adjust colors
+     - Apply watermarks and annotations
+
+5. **Download Results**:
    - Download as PNG, JPG, or PDF
    - Export with metadata for future reference
+
+## AI Image Editing (DALL-E)
+
+When using DALL-E models, you can refine generated images using natural language prompts:
+
+### Quick Enhancement Presets
+- 🎨 **Change Text Color**: Modify text colors for better readability
+- 🌈 **Enhance Colors**: Make colors more vibrant and eye-catching
+- ✨ **Professional Polish**: Add shadows, lighting, and refined typography
+- 🔆 **Brighten Image**: Increase exposure and vibrancy
+- 🎭 **Change Background**: Modify background colors or patterns
+- 📐 **Reposition Elements**: Move text, buttons, or logos
+
+### Custom Modifications
+Write custom prompts like:
+- "Change the text color to black with white outline"
+- "Replace the blue background with a gradient from orange to pink"
+- "Make the call-to-action button larger and green"
+- "Add a subtle drop shadow to the main heading"
+
+### Advanced Options
+- Preserve composition and layout
+- Maintain artistic style
+- Keep color scheme (unless explicitly changing)
+- High quality output settings
 
 ## Project Structure
 
@@ -69,18 +108,33 @@ ai-ad-creator/
 ├── requirements.txt       # Python dependencies
 ├── utils/                 # Utility modules
 │   ├── __init__.py       
-│   ├── ai_generator.py    # AI image generation handlers
+│   ├── ai_generator.py    # AI image generation and editing
+│   ├── ai_image_editor.py # AI-powered image editing interface
+│   ├── image_editor.py    # Manual image editing (Filerobot)
 │   ├── image_processor.py # Image processing utilities
-│   └── config.py         # Application configuration
-└── assets/               # Generated content
-    ├── generated_ads/    # Generated advertisement images
-    └── uploaded_logos/   # Uploaded client logos
+│   ├── template_manager.py # Template system
+│   ├── template_editor.py  # Template editing interface
+│   ├── prompts.py         # Prompt building utilities
+│   ├── helpers.py         # Helper functions
+│   └── config.py          # Environment configuration
+├── templates/            # Template storage
+│   └── custom/          # Custom user templates
+└── assets/              # Generated content
+    ├── generated_ads/   # Generated advertisement images
+    └── uploaded_logos/  # Uploaded client logos
 ```
 
 ## API Keys Required
 
-- **OpenAI API Key**: Required for DALL-E image generation
-- **Hugging Face Token**: Optional, for Stable Diffusion (coming soon)
+- **OpenAI API Key**: Required for DALL-E image generation and editing
+  - Sign up at [OpenAI Platform](https://platform.openai.com/)
+  - Add to `.env` file: `OPENAI_API_KEY=your_key_here`
+  - Or add to Streamlit secrets for cloud deployment
+
+- **Google API Key**: Required for Imagen and Nano Banana Pro models
+  - Get API key from [Google AI Studio](https://aistudio.google.com/apikey)
+  - Add to `.env` file: `GOOGLE_API_KEY=your_key_here`
+  - Optionally add: `GOOGLE_PROJECT_ID=your_project_id`
 
 ## Supported Ad Formats
 
@@ -115,13 +169,13 @@ ai-ad-creator/
 
 ## Features in Development
 
-- Stable Diffusion integration
-- Midjourney API integration  
-- Advanced logo positioning
-- Text overlay editor
-- Batch generation
+- Advanced masking for selective AI editing
+- Multi-image batch editing
+- Version history and comparison
+- A/B testing for ad variants
 - Campaign management
 - Analytics dashboard
+- Video ad generation
 
 ## Contributing
 

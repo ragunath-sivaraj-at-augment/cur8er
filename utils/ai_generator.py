@@ -342,6 +342,119 @@ class AIImageGenerator:
             st.error("💡 Check your OPENAI_API_KEY configuration and try again.")
             return None
     
+    def edit_dalle_image(self, image: Image.Image, prompt: str, mask: Optional[Image.Image] = None) -> Optional[Image.Image]:
+        """
+        Edit an existing image using DALL-E's image editing capability
+        
+        Args:
+            image: The original image to edit (PIL Image)
+            prompt: Description of the desired changes
+            mask: Optional mask image (transparent areas will be edited). If None, entire image can be modified.
+        
+        Returns:
+            Edited PIL Image or None if failed
+        """
+        try:
+            # Check if client is properly set up
+            if not hasattr(self, 'client') or not self.client:
+                st.error("❌ DALL-E API client not configured. Please check your OPENAI_API_KEY in the .env file.")
+                return None
+            
+            # DALL-E edit only works with DALL-E 2, not DALL-E 3
+            if self.model_name == "DALL-E 3":
+                st.warning("⚠️ DALL-E 3 doesn't support image editing. Using DALL-E 2 for this operation.")
+            
+            # Prepare image for DALL-E (must be PNG, RGBA, square, and < 4MB)
+            st.info("🔄 Preparing image for editing...")
+            
+            # Convert to RGBA if not already
+            if image.mode != 'RGBA':
+                image = image.convert('RGBA')
+            
+            # DALL-E edit requires square images (1024x1024 max)
+            original_size = image.size
+            max_size = 1024
+            
+            # Make it square by padding
+            max_dim = max(image.size)
+            if max_dim > max_size:
+                # Scale down proportionally
+                scale = max_size / max_dim
+                new_width = int(image.size[0] * scale)
+                new_height = int(image.size[1] * scale)
+                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Create square canvas
+            square_size = max(image.size)
+            square_image = Image.new('RGBA', (square_size, square_size), (255, 255, 255, 0))
+            # Center the image
+            offset = ((square_size - image.size[0]) // 2, (square_size - image.size[1]) // 2)
+            square_image.paste(image, offset)
+            
+            # Save to bytes
+            image_bytes = io.BytesIO()
+            square_image.save(image_bytes, format='PNG')
+            image_bytes.seek(0)
+            
+            # Prepare mask if provided
+            mask_bytes = None
+            if mask:
+                if mask.mode != 'RGBA':
+                    mask = mask.convert('RGBA')
+                # Make mask same size as image
+                if mask.size != square_image.size:
+                    mask = mask.resize(square_image.size, Image.Resampling.LANCZOS)
+                mask_bytes = io.BytesIO()
+                mask.save(mask_bytes, format='PNG')
+                mask_bytes.seek(0)
+            
+            st.info("🔄 Sending edit request to OpenAI DALL-E 2...")
+            
+            # Call DALL-E edit API
+            if mask_bytes:
+                response = self.client.images.edit(
+                    model="dall-e-2",
+                    image=image_bytes,
+                    mask=mask_bytes,
+                    prompt=prompt,
+                    n=1,
+                    size="1024x1024"
+                )
+            else:
+                response = self.client.images.edit(
+                    model="dall-e-2",
+                    image=image_bytes,
+                    prompt=prompt,
+                    n=1,
+                    size="1024x1024"
+                )
+            
+            st.success("✅ Received edited image from OpenAI")
+            image_url = response.data[0].url
+            
+            # Download edited image
+            image_response = requests.get(image_url)
+            if image_response.status_code != 200:
+                raise Exception(f"Failed to download edited image: HTTP {image_response.status_code}")
+            
+            edited_image = Image.open(io.BytesIO(image_response.content))
+            st.success(f"✅ Edited image downloaded: {edited_image.size[0]}x{edited_image.size[1]}")
+            
+            # Crop back to original aspect ratio if it was padded
+            if edited_image.size != original_size:
+                # Remove padding and resize to original size
+                edited_image = edited_image.crop((offset[0], offset[1], 
+                                                  offset[0] + image.size[0], 
+                                                  offset[1] + image.size[1]))
+                edited_image = edited_image.resize(original_size, Image.Resampling.LANCZOS)
+            
+            return edited_image
+            
+        except Exception as e:
+            st.error(f"❌ DALL-E Edit Error: {str(e)}")
+            st.error("💡 Make sure your image is in a supported format and try again.")
+            return None
+    
     def generate_stable_diffusion_image(self, prompt: str, size: Tuple[int, int]) -> Optional[Image.Image]:
         """Generate image using Stable Diffusion API (placeholder)"""
         st.info("🔧 Stable Diffusion integration in development")
