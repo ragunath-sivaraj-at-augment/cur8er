@@ -82,10 +82,25 @@ if 'show_ai_image_editor' not in st.session_state:
     st.session_state.show_ai_image_editor = False
 if 'edit_by_prompt_mode' not in st.session_state:
     st.session_state.edit_by_prompt_mode = False
+if 'form_company_name' not in st.session_state:
+    st.session_state.form_company_name = ""
+if 'form_user_prompt' not in st.session_state:
+    st.session_state.form_user_prompt = ""
+if 'form_ad_medium' not in st.session_state:
+    st.session_state.form_ad_medium = "Social Media"
+if 'form_style_preset' not in st.session_state:
+    st.session_state.form_style_preset = "Modern & Minimalist"
+if 'form_ad_size' not in st.session_state:
+    st.session_state.form_ad_size = "Square (1080x1080) - Instagram Post"
+if 'form_color_scheme' not in st.session_state:
+    st.session_state.form_color_scheme = "Brand Colors"
+if 'is_generating' not in st.session_state:
+    st.session_state.is_generating = False
 
 def main():
     st.title("🎨 Cur8er")
     st.markdown("Create stunning advertisements with AI-powered image generation")
+    st.info("ℹ️ Configure your ad settings in the left column and click 'Generate Ad' to create your advertisement")
     
     # AI Image Editor Interface (Full Width)
     if st.session_state.get('show_ai_image_editor', False):
@@ -149,7 +164,13 @@ def main():
         st.header("🎯 Configuration")
         
         # Company/Client input
-        company_name = st.text_input("Company/Client Name", placeholder="Enter company name...")
+        company_name = st.text_input(
+            "Company/Client Name", 
+            value=st.session_state.form_company_name,
+            placeholder="Enter company name...",
+            key="company_name_input",
+            on_change=lambda: setattr(st.session_state, 'form_company_name', st.session_state.company_name_input)
+        )
         
         # Template system toggle
         use_template = st.checkbox("Use Template System", value=False, key="template_toggle")
@@ -183,47 +204,65 @@ def main():
         
         # Custom prompt for LLM
         user_prompt = st.text_area(
-            "Custom Prompt (LLM Instructions)", 
+            "Custom Prompt (LLM Instructions)",
+            value=st.session_state.form_user_prompt,
             placeholder="Enter detailed instructions for the AI to create your advertisement...",
             help="💡 This is your custom prompt that instructs the AI model on what to generate",
-            height=100
+            height=100,
+            key="user_prompt_input",
+            on_change=lambda: setattr(st.session_state, 'form_user_prompt', st.session_state.user_prompt_input)
         )
         
         # Ad medium
+        medium_options = ["Social Media", "Print", "Digital Display", "Email", "Web Banner"]
+        medium_index = medium_options.index(st.session_state.form_ad_medium) if st.session_state.form_ad_medium in medium_options else 0
         ad_medium = st.selectbox(
             "Medium/Platform:",
-            options=["Social Media", "Print", "Digital Display", "Email", "Web Banner"]
+            options=medium_options,
+            index=medium_index,
+            key="ad_medium_select",
+            on_change=lambda: setattr(st.session_state, 'form_ad_medium', st.session_state.ad_medium_select)
         )
         
         # Style preset
+        style_options = [
+            "Modern & Minimalist",
+            "Bold & Vibrant", 
+            "Elegant & Professional",
+            "Retro & Vintage",
+            "Futuristic & Tech",
+            "Natural & Organic",
+            "Luxury & Premium",
+            "Playful & Fun"
+        ]
+        style_index = style_options.index(st.session_state.form_style_preset) if st.session_state.form_style_preset in style_options else 0
         style_preset = st.selectbox(
             "Style Preset:",
-            options=[
-                "Modern & Minimalist",
-                "Bold & Vibrant", 
-                "Elegant & Professional",
-                "Retro & Vintage",
-                "Futuristic & Tech",
-                "Natural & Organic",
-                "Luxury & Premium",
-                "Playful & Fun"
-            ]
+            options=style_options,
+            index=style_index,
+            key="style_preset_select",
+            on_change=lambda: setattr(st.session_state, 'form_style_preset', st.session_state.style_preset_select)
         )
         
         # Ad size selector
         st.subheader("📏 Select Sizes")
+        size_options = [
+            "Square (1080x1080) - Instagram Post",
+            "Landscape (1920x1080) - YouTube Thumbnail", 
+            "Portrait (1080x1920) - Instagram Story",
+            "Banner (728x90) - Web Banner",
+            "Leaderboard (970x250) - Web Header",
+            "Facebook Cover (820x312)",
+            "LinkedIn Post (1200x627)",
+            "Custom Size"
+        ]
+        size_index = size_options.index(st.session_state.form_ad_size) if st.session_state.form_ad_size in size_options else 0
         ad_size = st.selectbox(
             "Select ad size:",
-            options=[
-                "Square (1080x1080) - Instagram Post",
-                "Landscape (1920x1080) - YouTube Thumbnail", 
-                "Portrait (1080x1920) - Instagram Story",
-                "Banner (728x90) - Web Banner",
-                "Leaderboard (970x250) - Web Header",
-                "Facebook Cover (820x312)",
-                "LinkedIn Post (1200x627)",
-                "Custom Size"
-            ]
+            options=size_options,
+            index=size_index,
+            key="ad_size_select",
+            on_change=lambda: setattr(st.session_state, 'form_ad_size', st.session_state.ad_size_select)
         )
         
         # Custom size inputs if selected
@@ -273,13 +312,18 @@ def main():
         
         # Advanced options
         with st.expander("Advanced Options"):
+            color_options = ["Brand Colors", "Warm Tones", "Cool Tones", "Monochrome", "High Contrast", "Pastel"]
+            color_index = color_options.index(st.session_state.form_color_scheme) if st.session_state.form_color_scheme in color_options else 0
             color_scheme = st.selectbox(
                 "Primary Color Scheme:",
-                options=["Brand Colors", "Warm Tones", "Cool Tones", "Monochrome", "High Contrast", "Pastel"]
+                options=color_options,
+                index=color_index,
+                key="color_scheme_select",
+                on_change=lambda: setattr(st.session_state, 'form_color_scheme', st.session_state.color_scheme_select)
             )
             
             include_text = st.checkbox("Include text overlay", value=True)
-            include_cta = st.checkbox("Include call-to-action", value=True)
+            include_cta = st.checkbox("Include call-to-action", value=False)
             
             # Website and tagline
             client_website = st.text_input("Website (optional)", placeholder="https://example.com")
@@ -339,10 +383,18 @@ def main():
         model_status["Stable Diffusion"] = "coming_soon"
         model_status["Midjourney"] = "coming_soon"
         
-        # Main model selection dropdown
+        # Main model selection dropdown with Nano Banana Pro as default
+        # Find Nano Banana Pro index, fallback to first available
+        default_index = 0
+        for i, opt in enumerate(model_options):
+            if "Nano Banana Pro" in opt:
+                default_index = i
+                break
+        
         selected_option = st.selectbox(
             "Choose your AI model:",
             options=model_options,
+            index=default_index,
             help="✅ Ready to use | ❌ Need API key | 🔧 In development",
             key="main_model_selector"
         )
@@ -402,43 +454,48 @@ def main():
         
         st.divider()
         
-        # Model comparison section
-        with st.expander("📊 Model Comparison & Features"):
-            st.markdown("""
-            | Model | Provider | Quality | Speed | API Key Required | Status |
-            |-------|----------|---------|-------|-----------------|---------|
-            | DALL-E 3 | OpenAI | ⭐⭐⭐⭐⭐ | 🐌 Slow | ✅ Yes | Ready |
-            | DALL-E 2 | OpenAI | ⭐⭐⭐⭐ | 🚀 Fast | ✅ Yes | Ready |
-            | Gemini Pro | Google | ⭐⭐⭐⭐ | 🚀 Fast | ✅ Yes | Ready |
-            | Stable Diffusion | HuggingFace | ⭐⭐⭐⭐ | 🚀 Fast | ❌ No | 🔧 Coming Soon |
-            | Nano Banana | Google | ⭐⭐⭐⭐⭐ | ⚡ Ultra | ✅ Yes | Ready |
-            | Nano Banana Pro | Google | ⭐⭐⭐⭐⭐⭐ | ⚡ Ultra | ✅ Yes | 🚀 Advanced Features |
-            | Midjourney | Midjourney | ⭐⭐⭐⭐⭐ | 🐌 Slow | ❌ No | 🔧 Coming Soon |
-            
-            **Recommendations:**
-            - 🎯 **Best Quality:** DALL-E 3 or Nano Banana Pro
-            - 🚀 **Advanced Features:** Nano Banana Pro (4K, Search Grounding, Text Rendering, **14 Reference Images**)
-            - ⚡ **Fastest:** Nano Banana or DALL-E 2
-            - 💰 **Free Options:** Stable Diffusion (when available)
-            - 🎨 **Most Creative:** Nano Banana Pro with reference images (upload style references, mood boards, or inspiration images)
-            
-            **🖼️ Reference Image Feature:**
-            When using Nano Banana Pro, you can upload up to 14 reference images to guide the AI generation. These can be:
-            - Style references (color schemes, visual aesthetics)
-            - Composition examples (layout inspiration)
-            - Brand mood boards (visual brand identity)
-            - Product photos (for product-focused ads)
-            - Competitor ads (for style inspiration)
-            """)
+        # Model comparison section - COMMENTED FOR FUTURE ENABLEMENT
+        # with st.expander("📊 Model Comparison & Features"):
+        #     st.markdown("""
+        #     | Model | Provider | Quality | Speed | API Key Required | Status |
+        #     |-------|----------|---------|-------|-----------------|---------|
+        #     | DALL-E 3 | OpenAI | ⭐⭐⭐⭐⭐ | 🐌 Slow | ✅ Yes | Ready |
+        #     | DALL-E 2 | OpenAI | ⭐⭐⭐⭐ | 🚀 Fast | ✅ Yes | Ready |
+        #     | Gemini Pro | Google | ⭐⭐⭐⭐ | 🚀 Fast | ✅ Yes | Ready |
+        #     | Stable Diffusion | HuggingFace | ⭐⭐⭐⭐ | 🚀 Fast | ❌ No | 🔧 Coming Soon |
+        #     | Nano Banana | Google | ⭐⭐⭐⭐⭐ | ⚡ Ultra | ✅ Yes | Ready |
+        #     | Nano Banana Pro | Google | ⭐⭐⭐⭐⭐⭐ | ⚡ Ultra | ✅ Yes | 🚀 Advanced Features |
+        #     | Midjourney | Midjourney | ⭐⭐⭐⭐⭐ | 🐌 Slow | ❌ No | 🔧 Coming Soon |
+        #     
+        #     **Recommendations:**
+        #     - 🎯 **Best Quality:** DALL-E 3 or Nano Banana Pro
+        #     - 🚀 **Advanced Features:** Nano Banana Pro (4K, Search Grounding, Text Rendering, **14 Reference Images**)
+        #     - ⚡ **Fastest:** Nano Banana or DALL-E 2
+        #     - 💰 **Free Options:** Stable Diffusion (when available)
+        #     - 🎨 **Most Creative:** Nano Banana Pro with reference images (upload style references, mood boards, or inspiration images)
+        #     
+        #     **🖼️ Reference Image Feature:**
+        #     When using Nano Banana Pro, you can upload up to 14 reference images to guide the AI generation. These can be:
+        #     - Style references (color schemes, visual aesthetics)
+        #     - Composition examples (layout inspiration)
+        #     - Brand mood boards (visual brand identity)
+        #     - Product photos (for product-focused ads)
+        #     - Competitor ads (for style inspiration)
+        #     """)
         
-        st.header("Generated Advertisement")
-        
-        if st.session_state.generated_ad is not None:
-            # Display generated ad
+        # Display the generated ad or placeholder
+        if st.session_state.get('is_generating', False) and st.session_state.generated_ad is None:
+            # Show generating indicator only for first-time generation (no existing image)
+            st.markdown("### Preview")
+            with st.spinner(""):
+                st.info("🎨 Generating your advertisement...")
+                st.info("⏱️ This may take 10-60 seconds depending on the model.")
+        elif st.session_state.generated_ad is not None:
+            # Display generated ad with consistent header (even if generating a new one)
+            st.markdown("### Preview")
             st.image(
                 st.session_state.generated_ad,
-                caption="Generated Advertisement",
-                width='stretch'
+                use_container_width=True
             )
             
             # Ad information
@@ -534,11 +591,8 @@ def main():
                     with st.expander("🔍 Raw JSON Data", expanded=False):
                         st.json(params)
         else:
-            # Placeholder
-            st.info("👆 Configure your ad settings in the left column and click 'Generate Ad' to create your advertisement")
-            
-            # Show sample layout
-            st.markdown("### Preview Layout")
+            # Placeholder - Show sample layout
+            st.markdown("### Preview")
             placeholder_image = Image.new('RGB', dimensions, color='lightgray')
             st.image(placeholder_image, caption=f"Ad Preview - {dimensions[0]}x{dimensions[1]}")
     
@@ -571,12 +625,48 @@ def main():
                 # Use the selected model from the main selector
                 selected_ai_model = st.session_state.get('selected_model', 'DALL-E 3')
                 
+                # Store parameters and set generating flag
+                st.session_state.pending_generation = {
+                    'prompt': user_prompt or f"Professional advertisement for {company_name}",
+                    'company_name': company_name,
+                    'client_website': client_website,
+                    'client_tagline': client_tagline,
+                    'dimensions': dimensions,
+                    'ad_medium': ad_medium,
+                    'selected_ai_model': selected_ai_model,
+                    'style_preset': style_preset,
+                    'color_scheme': color_scheme,
+                    'include_text': include_text,
+                    'include_cta': include_cta,
+                    'uploaded_logo': uploaded_logo,
+                    'selected_template': selected_template if use_template else None,
+                    'reference_images': reference_images
+                }
+                st.session_state.is_generating = True
+                st.rerun()
+        
+        # Check if we should generate (after rerun with is_generating flag)
+        if st.session_state.get('is_generating', False) and 'pending_generation' in st.session_state:
+            params = st.session_state.pending_generation
+            st.session_state.is_generating = False
+            del st.session_state.pending_generation
+            
+            with st.spinner(f"🎨 Generating advertisement... Please wait..."):
                 generate_ad(
-                    user_prompt or f"Professional advertisement for {company_name}",  # Default prompt if empty
-                    company_name, client_website, client_tagline, dimensions, ad_medium, 
-                    selected_ai_model, style_preset, color_scheme, include_text, 
-                    include_cta, uploaded_logo, selected_template if use_template else None,
-                    reference_images
+                    params['prompt'],
+                    params['company_name'],
+                    params['client_website'],
+                    params['client_tagline'],
+                    params['dimensions'],
+                    params['ad_medium'],
+                    params['selected_ai_model'],
+                    params['style_preset'],
+                    params['color_scheme'],
+                    params['include_text'],
+                    params['include_cta'],
+                    params['uploaded_logo'],
+                    params['selected_template'],
+                    params['reference_images']
                 )
         
         st.divider()
@@ -612,22 +702,6 @@ def main():
                 st.markdown("---")
                 st.markdown("#### ✏️ Edit Image by Prompt")
                 st.info("💡 Describe how you want to modify the current image. The AI will use your last generated image as reference.")
-                st.info("ℹ️ All original settings (company name, size, style, logo, etc.) will be preserved - only the prompt changes.")
-                
-                # Show what settings will be preserved
-                params = st.session_state.generation_params
-                with st.expander("🔍 Settings Being Preserved"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write(f"**Company:** {params.get('client_name', 'N/A')}")
-                        st.write(f"**Medium:** {params.get('medium', 'N/A')}")
-                        st.write(f"**Style:** {params.get('style', 'N/A')}")
-                        st.write(f"**Color Scheme:** {params.get('color_scheme', 'N/A')}")
-                    with col2:
-                        st.write(f"**Size:** {params.get('dimensions', (1024, 1024))}")
-                        st.write(f"**Model:** {params.get('model', 'N/A')}")
-                        st.write(f"**Logo:** {'Yes' if params.get('logo_uploaded') else 'No'}")
-                        st.write(f"**Template:** {params.get('template_name', 'None')}")
                 
                 edit_prompt = st.text_area(
                     "Modification Prompt:",
@@ -650,23 +724,25 @@ def main():
                             # Retrieve the logo from session state
                             logo_to_use = st.session_state.client_logo
                             
-                            # Generate with edit prompt and reference image, preserving all settings
-                            generate_ad(
-                                edit_prompt,  # Use edit prompt instead of original custom prompt
-                                params.get("client_name", ""),
-                                params.get("client_website", ""),
-                                params.get("client_tagline", ""),
-                                params.get("dimensions", (1024, 1024)),
-                                params.get("medium", "Instagram Post"),
-                                params.get("model", "DALL-E 3"),
-                                params.get("style", "Modern & Minimalist"),
-                                params.get("color_scheme", "Brand Colors"),
-                                params.get("include_text", True),
-                                params.get("include_cta", True),
-                                logo_to_use,  # Use the stored logo from session state
-                                params.get("template_used"),  # Use the same template if one was used
-                                reference_images  # Use current image as reference
-                            )
+                            # Store parameters and set generating flag
+                            st.session_state.pending_generation = {
+                                'prompt': edit_prompt,
+                                'company_name': params.get("client_name", ""),
+                                'client_website': params.get("client_website", ""),
+                                'client_tagline': params.get("client_tagline", ""),
+                                'dimensions': params.get("dimensions", (1024, 1024)),
+                                'ad_medium': params.get("medium", "Instagram Post"),
+                                'selected_ai_model': params.get("model", "DALL-E 3"),
+                                'style_preset': params.get("style", "Modern & Minimalist"),
+                                'color_scheme': params.get("color_scheme", "Brand Colors"),
+                                'include_text': params.get("include_text", True),
+                                'include_cta': params.get("include_cta", True),
+                                'uploaded_logo': logo_to_use,
+                                'selected_template': params.get("template_used"),
+                                'reference_images': reference_images
+                            }
+                            st.session_state.is_generating = True
+                            st.rerun()
                         else:
                             st.error("❌ Please enter a modification prompt")
                 
@@ -679,14 +755,12 @@ def main():
             
             # Download section
             st.subheader("📥 Download")
-            download_ad()
             
-            # Additional export options
-            export_format = st.selectbox("Format:", ["PNG", "JPG", "PDF"])
+            # Format selection first
+            export_format = st.selectbox("Select Format:", ["PNG", "JPG", "PDF"], index=0)
             
-            if export_format == "PDF":
-                if st.button("📄 Create PDF", use_container_width=True):
-                    create_pdf_export()
+            # Single download button for all formats
+            download_ad_with_format(export_format)
             
             st.divider()
         
@@ -1174,8 +1248,94 @@ def regenerate_ad():
             params.get("template_used", None)
         )
 
+def download_ad_with_format(format_type):
+    """Provide download functionality with format selection"""
+    if st.session_state.generated_ad is not None:
+        # Create filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        client_name = st.session_state.generation_params.get("client_name", "ad").replace(" ", "_")
+        
+        if format_type == "PNG":
+            # Convert PIL image to PNG bytes
+            img_buffer = io.BytesIO()
+            st.session_state.generated_ad.save(img_buffer, format='PNG')
+            img_bytes = img_buffer.getvalue()
+            filename = f"{client_name}_ad_{timestamp}.png"
+            mime_type = "image/png"
+            label = "💾 Download PNG"
+            
+        elif format_type == "JPG":
+            # Convert PIL image to JPG bytes
+            img_buffer = io.BytesIO()
+            # Convert RGBA to RGB for JPG (JPG doesn't support transparency)
+            img_rgb = st.session_state.generated_ad.convert('RGB')
+            img_rgb.save(img_buffer, format='JPEG', quality=95)
+            img_bytes = img_buffer.getvalue()
+            filename = f"{client_name}_ad_{timestamp}.jpg"
+            mime_type = "image/jpeg"
+            label = "💾 Download JPG"
+            
+        elif format_type == "PDF":
+            try:
+                from reportlab.lib.pagesizes import letter
+                from reportlab.pdfgen import canvas
+                from reportlab.lib.utils import ImageReader
+                
+                # Create PDF
+                pdf_buffer = io.BytesIO()
+                
+                # Get image dimensions
+                img_width, img_height = st.session_state.generated_ad.size
+                
+                # Create PDF with image dimensions (or fit to letter size)
+                c = canvas.Canvas(pdf_buffer, pagesize=letter)
+                page_width, page_height = letter
+                
+                # Calculate scaling to fit page while maintaining aspect ratio
+                scale = min(page_width / img_width, page_height / img_height) * 0.9  # 90% of page
+                new_width = img_width * scale
+                new_height = img_height * scale
+                
+                # Center the image on the page
+                x = (page_width - new_width) / 2
+                y = (page_height - new_height) / 2
+                
+                # Draw the image
+                c.drawImage(ImageReader(st.session_state.generated_ad), 
+                           x, y, new_width, new_height)
+                
+                # Add metadata if available
+                params = st.session_state.generation_params
+                if params:
+                    c.setTitle(f"Advertisement - {params.get('client_name', 'Unknown')}")
+                    c.setAuthor("Cur8er AI Ad Generator")
+                    c.setSubject(f"Generated using {params.get('model', 'AI')}")
+                
+                c.save()
+                img_bytes = pdf_buffer.getvalue()
+                filename = f"{client_name}_ad_{timestamp}.pdf"
+                mime_type = "application/pdf"
+                label = "💾 Download PDF"
+                
+            except ImportError:
+                st.error("📦 PDF export requires reportlab library.")
+                st.info("Install it with: `pip install reportlab`")
+                return
+            except Exception as e:
+                st.error(f"❌ Error creating PDF: {str(e)}")
+                return
+        
+        # Download button
+        st.download_button(
+            label=label,
+            data=img_bytes,
+            file_name=filename,
+            mime=mime_type,
+            use_container_width=True
+        )
+
 def download_ad():
-    """Provide download functionality"""
+    """Provide download functionality (legacy function - kept for compatibility)"""
     if st.session_state.generated_ad is not None:
         # Convert PIL image to bytes
         img_buffer = io.BytesIO()
@@ -1194,25 +1354,6 @@ def download_ad():
             mime="image/png",
             width='stretch'
         )
-
-def create_pdf_export():
-    """Create PDF export with metadata"""
-    if st.session_state.generated_ad is not None:
-        try:
-            from reportlab.pdfgen import canvas
-            from reportlab.lib.pagesizes import letter
-            import tempfile
-            
-            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
-                # Create PDF with metadata
-                pdf_buffer = io.BytesIO()
-                # Implementation for PDF creation would go here
-                st.success("PDF created successfully!")
-                
-        except ImportError:
-            st.error("PDF export requires reportlab. Install with: pip install reportlab")
-        except Exception as e:
-            st.error(f"Error creating PDF: {str(e)}")
 
 def test_api_connection(model_name=None):
     """Test the API connection for the selected model"""
