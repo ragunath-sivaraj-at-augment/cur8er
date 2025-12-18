@@ -79,7 +79,7 @@ class EditableTemplateManager:
                 id="main_message_1",
                 position={"x": 50, "y": height//2},
                 size={"width": int(width*0.8), "height": height//4},
-                content="{{prompt}}",
+                content="{{main_message}}",
                 style={"font_family": "Arial", "font_size": 48, "color": "#FFFFFF", "weight": "normal"}
             ),
             TemplateElement(
@@ -245,7 +245,7 @@ def show_template_editor():
             **Text Placeholders:**
             - `{{client_name}}` - Company name
             - `{{client_tagline}}` - Company slogan  
-            - `{{prompt}}` - Advertisement message
+            - `{{main_message}}` - Advertisement main message/description
             - `{{cta_text}}` - Call-to-action button text
             - `{{client_website}}` - Website URL
             
@@ -287,40 +287,71 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
     with preview_col:
         st.markdown("#### 🎨 Template Preview")
         
-        # Visual canvas representation
-        canvas_scale = min(400 / template.dimensions[0], 300 / template.dimensions[1])
-        display_width = int(template.dimensions[0] * canvas_scale)
-        display_height = int(template.dimensions[1] * canvas_scale)
+        # Create visual preview image
+        preview_img = Image.new('RGB', tuple(template.dimensions), color='#f0f0f0')
+        draw = ImageDraw.Draw(preview_img)
         
-        st.markdown(f"""
-        <div style="
-            width: {display_width}px; 
-            height: {display_height}px; 
-            border: 2px solid #666; 
-            background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
-            position: relative;
-            margin: 10px 0;
-            font-size: 10px;
-        ">
-        """, unsafe_allow_html=True)
-        
-        # Show elements on canvas (simplified visualization)
+        # Draw elements on preview
         if template.elements:
-            elements_info = "**Elements Layout:**\n"
             for i, element in enumerate(template.elements):
-                scaled_x = int(element.position['x'] * canvas_scale)
-                scaled_y = int(element.position['y'] * canvas_scale)
-                scaled_w = int(element.size['width'] * canvas_scale)
-                scaled_h = int(element.size['height'] * canvas_scale)
+                x = element.position['x']
+                y = element.position['y']
+                w = element.size['width']
+                h = element.size['height']
                 
-                elements_info += f"- **{i+1}. {element.type.title()}:** `{element.content[:25]}{'...' if len(element.content) > 25 else ''}`\n"
-                elements_info += f"  📍 Position: ({element.position['x']}, {element.position['y']}) | Size: {element.size['width']}×{element.size['height']}\n\n"
-            
-            st.markdown(elements_info)
+                # Draw element box based on type
+                if element.type == "logo":
+                    # Logo area - purple/blue
+                    draw.rectangle([x, y, x+w, y+h], fill='#9B59B6', outline='#8E44AD', width=3)
+                    # Add text label
+                    try:
+                        font = ImageFont.truetype("arial.ttf", min(30, h//3))
+                    except:
+                        font = ImageFont.load_default()
+                    draw.text((x+w//2, y+h//2), "LOGO", fill='white', anchor="mm", font=font)
+                    
+                elif element.type == "text":
+                    # Text area - light blue
+                    draw.rectangle([x, y, x+w, y+h], fill='#3498DB', outline='#2980B9', width=2)
+                    # Add text label
+                    try:
+                        font_size = min(element.style.get('font_size', 30), h//2)
+                        font = ImageFont.truetype("arial.ttf", font_size)
+                    except:
+                        font = ImageFont.load_default()
+                    text_preview = element.content[:20] if element.content else "Text"
+                    draw.text((x+10, y+h//2), text_preview, fill='white', anchor="lm", font=font)
+                    
+                elif element.type == "button":
+                    # Button - orange
+                    bg_color = element.style.get('bg_color', '#FF6600')
+                    draw.rectangle([x, y, x+w, y+h], fill=bg_color, outline='#E55D00', width=3)
+                    # Add button text
+                    try:
+                        font = ImageFont.truetype("arial.ttf", min(24, h//2))
+                    except:
+                        font = ImageFont.load_default()
+                    btn_text = element.content[:15] if element.content else "Button"
+                    draw.text((x+w//2, y+h//2), btn_text, fill='white', anchor="mm", font=font)
+                    
+                elif element.type == "shape":
+                    # Shape - gray
+                    fill_color = element.style.get('fill_color', '#95A5A6')
+                    draw.rectangle([x, y, x+w, y+h], fill=fill_color, outline='#7F8C8D', width=2)
+        
+        # Display the preview image
+        st.image(preview_img, caption=f"Template Layout Preview - {template.dimensions[0]}×{template.dimensions[1]}px", width='stretch')
+        
+        # Show elements list below preview
+        if template.elements:
+            with st.expander("📋 Elements Summary", expanded=False):
+                elements_info = ""
+                for i, element in enumerate(template.elements):
+                    elements_info += f"**{i+1}. {element.type.title()}:** `{element.content[:25]}{'...' if len(element.content) > 25 else ''}`\n"
+                    elements_info += f"  📍 Position: ({element.position['x']}, {element.position['y']}) | Size: {element.size['width']}×{element.size['height']}\n\n"
+                st.markdown(elements_info)
         else:
             st.info("No elements added yet. Use the 'Add Element' section to start building your template.")
-        
-        st.markdown("</div>", unsafe_allow_html=True)
         
         # Background settings
         st.markdown("#### 🌈 Background Style")
@@ -361,7 +392,7 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
         else:
             st.info("No elements added")
         
-        # Add new element
+        # Add new element with full control
         st.markdown("#### ➕ Add New Element")
         
         with st.form("add_element_form", clear_on_submit=True):
@@ -479,101 +510,29 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
         else:
             st.info("Add elements to edit their properties")
         
-        # Save template
+        # Save template section
         st.markdown("---")
-        if st.button("💾 Save Template", width='stretch', type="primary"):
-            if manager.save_template(template):
-                st.success(f"✅ Template '{template.name}' saved successfully!")
-                st.balloons()
-            else:
-                st.error("❌ Failed to save template")
-                
-                selected_element.style.update({
-                    'bg_color': bg_color,
-                    'text_color': text_color
-                })
-            
-            # Element actions
-            if st.button(f"🗑️ Delete Element", key=f"delete_{selected_idx}"):
-                template.elements.pop(selected_idx)
+        st.markdown("#### 💾 Template Actions")
+        
+        action_col1, action_col2, action_col3 = st.columns(3)
+        
+        with action_col1:
+            if st.button("💾 Save Template", width='stretch', type="primary"):
+                if manager.save_template(template):
+                    st.success(f"✅ Template '{template.name}' saved successfully!")
+                    st.balloons()
+                else:
+                    st.error("❌ Failed to save template")
+        
+        with action_col2:
+            if st.button("🔄 Reset Layout", width='stretch'):
+                template.elements = manager.get_default_elements(template.dimensions)
+                st.success("Template reset to default layout")
                 st.rerun()
-    
-    # Add new element
-    st.divider()
-    st.write("**Add New Element**")
-    
-    add_col1, add_col2, add_col3, add_col4 = st.columns(4)
-    
-    with add_col1:
-        if st.button("➕ Add Text"):
-            new_element = TemplateElement(
-                type="text",
-                id=f"text_{len(template.elements)+1}",
-                position={"x": 100, "y": 100},
-                size={"width": 300, "height": 50},
-                content="{{new_text}}",
-                style={"font_size": 30, "color": "#FFFFFF"}
-            )
-            template.elements.append(new_element)
-            st.rerun()
-    
-    with add_col2:
-        if st.button("🖼️ Add Logo Area"):
-            new_element = TemplateElement(
-                type="logo",
-                id=f"logo_{len(template.elements)+1}",
-                position={"x": 50, "y": 50},
-                size={"width": 200, "height": 100},
-                content="{{logo}}",
-                style={"opacity": 1.0}
-            )
-            template.elements.append(new_element)
-            st.rerun()
-    
-    with add_col3:
-        if st.button("🔘 Add Button"):
-            new_element = TemplateElement(
-                type="button",
-                id=f"button_{len(template.elements)+1}",
-                position={"x": 200, "y": 200},
-                size={"width": 200, "height": 60},
-                content="{{cta_text}}",
-                style={"bg_color": "#FF6600", "text_color": "#FFFFFF"}
-            )
-            template.elements.append(new_element)
-            st.rerun()
-    
-    with add_col4:
-        if st.button("⬜ Add Shape"):
-            new_element = TemplateElement(
-                type="shape",
-                id=f"shape_{len(template.elements)+1}",
-                position={"x": 150, "y": 150},
-                size={"width": 100, "height": 100},
-                content="rectangle",
-                style={"fill_color": "#333333", "border_color": "#666666"}
-            )
-            template.elements.append(new_element)
-            st.rerun()
-    
-    # Save template
-    st.divider()
-    save_col1, save_col2, save_col3 = st.columns(3)
-    
-    with save_col1:
-        if st.button("💾 Save Template", type="primary"):
-            if manager.save_template(template):
-                st.success(f"Template '{template.name}' saved successfully!")
-            else:
-                st.error("Failed to save template")
-    
-    with save_col2:
-        if st.button("🔄 Reset to Default"):
-            template.elements = manager.get_default_elements(template.dimensions)
-            st.success("Template reset to default layout")
-            st.rerun()
-    
-    with save_col3:
-        if st.button("❌ Close Editor"):
-            st.session_state.editing_template = None
-            st.rerun()
+        
+        with action_col3:
+            if st.button("❌ Close Editor", width='stretch'):
+                # Close both the editing template and the template editor itself
+                st.session_state.editing_template = None
+                st.session_state.show_template_editor = False
+                st.rerun()

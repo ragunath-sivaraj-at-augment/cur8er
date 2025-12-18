@@ -17,56 +17,17 @@ class TemplateManager:
         self.custom_templates_dir = "templates/custom"
         os.makedirs(self.templates_dir, exist_ok=True)
         os.makedirs(self.custom_templates_dir, exist_ok=True)
-        self.load_default_templates()
-    
-    def load_default_templates(self):
-        """Load default template configurations"""
-        self.templates = {
-            "billboard_horizontal": {
-                "name": "Billboard Horizontal",
-                "dimensions": (1920, 1080),
-                "logo_area": {"x": 50, "y": 50, "width": 300, "height": 150},
-                "title_area": {"x": 400, "y": 50, "width": 1000, "height": 200},
-                "tagline_area": {"x": 400, "y": 250, "width": 800, "height": 80},
-                "content_area": {"x": 50, "y": 350, "width": 1200, "height": 500},
-                "cta_area": {"x": 1300, "y": 750, "width": 400, "height": 150},
-                "background_prompt": "Create vibrant background design for outdoor billboard with high contrast and bold visual elements"
-            },
-            "social_media_square": {
-                "name": "Social Media Square",
-                "dimensions": (1080, 1080),
-                "logo_area": {"x": 50, "y": 50, "width": 200, "height": 100},
-                "title_area": {"x": 50, "y": 160, "width": 980, "height": 120},  # Company name - higher priority
-                "tagline_area": {"x": 50, "y": 290, "width": 800, "height": 60},
-                "content_area": {"x": 50, "y": 370, "width": 980, "height": 280},  # Main message below company
-                "cta_area": {"x": 50, "y": 820, "width": 300, "height": 100},
-                "background_prompt": "Create modern, mobile-friendly background design with engaging colors and clean layout"
-            },
-            "web_banner_wide": {
-                "name": "Web Banner Wide",
-                "dimensions": (728, 300),
-                "logo_area": {"x": 20, "y": 20, "width": 150, "height": 75},
-                "title_area": {"x": 200, "y": 20, "width": 400, "height": 100},
-                "tagline_area": {"x": 200, "y": 120, "width": 350, "height": 40},
-                "content_area": {"x": 20, "y": 170, "width": 500, "height": 100},
-                "cta_area": {"x": 550, "y": 200, "width": 150, "height": 60},
-                "background_prompt": "Create clean web-optimized background design with professional appearance and clear visual hierarchy"
-            }
-        }
+        # Removed load_default_templates() - only using custom templates now
     
     def get_available_templates(self) -> Dict:
-        """Return list of available templates including custom ones"""
+        """Return list of available custom templates"""
         templates = {}
         
-        # Add built-in templates
-        for k, v in self.templates.items():
-            templates[k] = v["name"]
-        
-        # Add custom templates
+        # Only add custom templates (removed built-in templates)
         custom_templates = self.get_custom_templates()
         for template_name in custom_templates:
             template_id = f"custom_{template_name.lower().replace(' ', '_')}"
-            templates[template_id] = f"📝 {template_name} (Custom)"
+            templates[template_id] = f"📝 {template_name}"
         
         return templates
     
@@ -97,8 +58,8 @@ class TemplateManager:
             return None
     
     def get_template(self, template_id: str) -> Optional[Dict]:
-        """Get specific template configuration"""
-        # Check if it's a custom template
+        """Get specific template configuration - only custom templates supported"""
+        # All templates are custom templates now
         if template_id.startswith("custom_"):
             template_name = template_id[7:].replace('_', ' ').title()
             custom_template = self.load_custom_template(template_name)
@@ -106,8 +67,95 @@ class TemplateManager:
                 # Convert custom template format to standard format
                 return self._convert_custom_template(custom_template)
         
-        # Return built-in template
-        return self.templates.get(template_id)
+        # No built-in templates anymore
+        return None
+    
+    def get_template_variables(self, template_id: str) -> List[Dict[str, str]]:
+        """Extract all variables from a template and return metadata for form generation
+        
+        Returns:
+            List of dicts with keys: 'variable', 'label', 'type', 'placeholder'
+        """
+        # Standard variables that are always included
+        standard_vars = {
+            '{{logo}}': {
+                'variable': 'logo',
+                'label': 'Company Logo',
+                'type': 'file',
+                'placeholder': 'Upload logo image'
+            },
+            '{{client_name}}': {
+                'variable': 'client_name',
+                'label': 'Company Name',
+                'type': 'text',
+                'placeholder': 'Enter company name...'
+            },
+            '{{client_tagline}}': {
+                'variable': 'client_tagline',
+                'label': 'Tagline',
+                'type': 'text',
+                'placeholder': 'Your company slogan...'
+            },
+            '{{main_message}}': {
+                'variable': 'main_message',
+                'label': 'Main Message',
+                'type': 'textarea',
+                'placeholder': 'Enter the main advertisement message...'
+            },
+            '{{prompt}}': {  # Legacy support
+                'variable': 'main_message',
+                'label': 'Main Message',
+                'type': 'textarea',
+                'placeholder': 'Enter the main advertisement message...'
+            },
+            '{{cta_text}}': {
+                'variable': 'cta_text',
+                'label': 'Call-to-Action Text',
+                'type': 'text',
+                'placeholder': 'e.g., SHOP NOW, LEARN MORE...'
+            },
+            '{{client_website}}': {
+                'variable': 'client_website',
+                'label': 'Website',
+                'type': 'text',
+                'placeholder': 'https://example.com'
+            }
+        }
+        
+        # Get template elements - only custom templates now
+        template = None
+        if template_id.startswith("custom_"):
+            template_name = template_id[7:].replace('_', ' ').title()
+            template = self.load_custom_template(template_name)
+        
+        if not template:
+            return []
+        
+        # Extract variables from template elements
+        found_variables = {}
+        
+        # Check custom template elements
+        if "elements" in template:
+            for element in template["elements"]:
+                content = element.get("content", "")
+                # Find all {{variable}} patterns
+                import re
+                matches = re.findall(r'\{\{([^}]+)\}\}', content)
+                for var_name in matches:
+                    var_key = f"{{{{{var_name}}}}}"
+                    if var_key in standard_vars:
+                        found_variables[var_name] = standard_vars[var_key]
+                    else:
+                        # Custom variable not in standard list
+                        found_variables[var_name] = {
+                            'variable': var_name,
+                            'label': var_name.replace('_', ' ').title(),
+                            'type': 'text',
+                            'placeholder': f'Enter {var_name.replace("_", " ")}...'
+                        }
+        
+        # Return list of unique variables
+        return list(found_variables.values())
     
     def _convert_custom_template(self, custom_template: Dict) -> Dict:
         """Convert custom template format to standard template format"""
@@ -143,7 +191,7 @@ class TemplateManager:
                     "width": element["size"]["width"],
                     "height": element["size"]["height"]
                 }
-            elif element["type"] == "text" and "prompt" in element.get("content", ""):
+            elif element["type"] == "text" and ("main_message" in element.get("content", "") or "prompt" in element.get("content", "")):
                 content_area = {
                     "x": element["position"]["x"],
                     "y": element["position"]["y"],
@@ -177,18 +225,47 @@ class TemplateManager:
     
     def create_template_background(self, template_id: str, style: str, color_scheme: str, 
                                  content_prompt: str) -> str:
-        """Generate AI prompt for template background creation with NO text conflicts"""
+        """Generate AI prompt for template background creation with NO text conflicts
+        
+        The content_prompt (user's custom prompt) is the PRIMARY instruction for background generation.
+        If provided, it completely drives the visual generation with template context as secondary.
+        """
         template = self.get_template(template_id)
         if not template:
             return ""
         
-        # Extract theme from content prompt using centralized system
-        theme_keywords = PromptBuilder.extract_theme_keywords(content_prompt)
+        # If user provided custom prompt, use it as the PRIMARY instruction
+        if content_prompt and content_prompt.strip():
+            # Use the custom prompt directly as the main instruction
+            # Add template context only to ensure proper sizing and no text
+            dimensions = template.get("dimensions", [1920, 1080])
+            width = dimensions[0] if isinstance(dimensions, list) and len(dimensions) >= 2 else 1920
+            height = dimensions[1] if isinstance(dimensions, list) and len(dimensions) >= 2 else 1080
+            
+            base_prompt = f"{content_prompt.strip()}"
+            base_prompt += f"\n\nIMPORTANT REQUIREMENTS:\n"
+            base_prompt += f"- Create a {width}x{height}px background image\n"
+            base_prompt += f"- Do not include any text, words, letters, or typography in the image\n"
+            base_prompt += f"- Keep visual elements balanced and not overly busy, as text and other elements will be overlaid\n"
+            base_prompt += f"- Avoid placing detailed objects or high-contrast patterns in the center and upper portions where text will appear\n"
+            base_prompt += f"- Use subtle gradients or soft focus for background depth to ensure overlaid elements remain clearly visible\n"
+            base_prompt += f"- Main visual interest should be in the background layer, not competing with foreground text placement"
+            
+            # Add style and color scheme guidance if specified
+            if style and style != "Professional":
+                base_prompt += f" Style: {style}."
+            if color_scheme and color_scheme != "Brand Colors":
+                base_prompt += f" Color scheme: {color_scheme}."
+            
+            return base_prompt
         
-        # Build prompt using centralized template
-        return PromptBuilder.build_template_background_prompt(
+        # Fallback: If no custom prompt, use template-based generation
+        theme_keywords = PromptBuilder.extract_theme_keywords(content_prompt)
+        base_prompt = PromptBuilder.build_template_background_prompt(
             template, style, color_scheme, theme_keywords
         )
+        
+        return base_prompt
     
     def apply_brand_elements(self, background_image: Image.Image, template_id: str,
                            logo: Optional[Image.Image] = None, 
@@ -209,7 +286,7 @@ class TemplateManager:
                 "logo": logo,
                 "client_name": client_name,
                 "client_tagline": tagline,
-                "prompt": main_message,
+                "main_message": main_message,  # This maps to {{main_message}} in template
                 "cta_text": cta_text,
                 "client_website": website
             })
@@ -244,17 +321,18 @@ class TemplateManager:
                 
                 # Replace template variables in content
                 for var, value in data.items():
-                    if value and f"{{{{{var}}}}}" in content:
+                    # Only replace if value exists and is not empty after stripping
+                    if value and str(value).strip() and f"{{{{{var}}}}}" in content:
                         content = content.replace(f"{{{{{var}}}}}", str(value))
                 
-                # Apply element based on type
-                if element_type == "text" and content and not content.startswith("{{"):
+                # Apply element based on type - skip if empty or still has unreplaced variables
+                if element_type == "text" and content and content.strip() and not content.startswith("{{"):
                     self._draw_custom_text(draw, content, position, size, style, fonts)
                 
                 elif element_type == "logo" and data.get("logo"):
                     self._draw_custom_logo(result_image, data["logo"], position, size, style)
                 
-                elif element_type == "button" and content and not content.startswith("{{"):
+                elif element_type == "button" and content and content.strip() and not content.startswith("{{"):
                     self._draw_custom_button(draw, content, position, size, style, fonts, data.get("client_website"))
                 
                 elif element_type == "shape":
@@ -267,7 +345,9 @@ class TemplateManager:
         return result_image
     
     def _draw_custom_text(self, draw, text: str, position: Dict, size: Dict, style: Dict, fonts: Dict):
-        """Draw custom text element"""
+        """Draw custom text element with seamless blending"""
+        from PIL import Image as PILImage, ImageFilter
+        
         font_size = style.get('font_size', 30)
         color = style.get('color', '#FFFFFF')
         
@@ -282,9 +362,61 @@ class TemplateManager:
             font = fonts['xlarge']
         
         x, y = position.get('x', 0), position.get('y', 0)
-        stroke_width = 2 if font_size > 40 else 1
+        width = size.get('width', 500)
+        height = size.get('height', 100)
         
-        draw.text((x, y), text, font=font, fill=color, stroke_width=stroke_width, stroke_fill="black")
+        # Get the actual text bounding box for precise backdrop sizing
+        bbox = draw.textbbox((x, y), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        
+        # Create a semi-transparent backdrop with rounded corners
+        padding_h = 20
+        padding_v = 15
+        backdrop_x = max(0, x - padding_h)
+        backdrop_y = max(0, y - padding_v)
+        backdrop_width = text_width + (padding_h * 2)
+        backdrop_height = text_height + (padding_v * 2)
+        
+        # Draw soft shadow for the backdrop (multiple layers for blur effect)
+        shadow_layers = 3
+        for i in range(shadow_layers, 0, -1):
+            shadow_alpha = 30 - (i * 8)  # Decreasing opacity for softer shadow
+            shadow_offset = i * 2
+            draw.rounded_rectangle(
+                [backdrop_x + shadow_offset, backdrop_y + shadow_offset, 
+                 backdrop_x + backdrop_width + shadow_offset, backdrop_y + backdrop_height + shadow_offset],
+                radius=8,
+                fill=(0, 0, 0, shadow_alpha)
+            )
+        
+        # Draw semi-transparent backdrop with subtle gradient effect
+        backdrop_alpha = 110  # Semi-transparent for blending
+        draw.rounded_rectangle(
+            [backdrop_x, backdrop_y, backdrop_x + backdrop_width, backdrop_y + backdrop_height],
+            radius=8,
+            fill=(0, 0, 0, backdrop_alpha)
+        )
+        
+        # Add subtle border/highlight to backdrop for polish
+        draw.rounded_rectangle(
+            [backdrop_x, backdrop_y, backdrop_x + backdrop_width, backdrop_y + backdrop_height],
+            radius=8,
+            outline=(255, 255, 255, 30),
+            width=1
+        )
+        
+        # Draw text with soft shadow for depth
+        shadow_offset = 3
+        shadow_blur = 2
+        for offset in range(shadow_blur, 0, -1):
+            shadow_alpha = 100 - (offset * 20)
+            draw.text((x + shadow_offset + offset, y + shadow_offset + offset), 
+                     text, font=font, fill=(0, 0, 0, shadow_alpha))
+        
+        # Draw main text with subtle stroke for definition
+        stroke_width = 2 if font_size > 40 else 1
+        draw.text((x, y), text, font=font, fill=color, stroke_width=stroke_width, stroke_fill=(0, 0, 0, 150))
     
     def _draw_custom_logo(self, image: Image.Image, logo: Image.Image, position: Dict, size: Dict, style: Dict):
         """Draw custom logo element"""
@@ -297,17 +429,54 @@ class TemplateManager:
             image.paste(resized_logo, (x, y), resized_logo if resized_logo.mode == 'RGBA' else None)
     
     def _draw_custom_button(self, draw, text: str, position: Dict, size: Dict, style: Dict, fonts: Dict, website: str = ""):
-        """Draw custom button element"""
+        """Draw custom button element with professional blending"""
+        from PIL import Image as PILImage
+        
         x, y = position.get('x', 0), position.get('y', 0)
         width, height = size.get('width', 200), size.get('height', 60)
         bg_color = style.get('bg_color', '#FF6600')
         text_color = style.get('text_color', '#FFFFFF')
         border_radius = style.get('border_radius', 10)
         
-        # Draw button background
-        draw.rounded_rectangle([x, y, x + width, y + height], radius=border_radius, fill=bg_color)
+        # Draw multi-layer soft shadow for natural depth
+        shadow_layers = 4
+        for i in range(shadow_layers, 0, -1):
+            shadow_alpha = 40 - (i * 8)  # Gradually decreasing opacity
+            shadow_offset = i * 2
+            draw.rounded_rectangle(
+                [x + shadow_offset, y + shadow_offset, x + width + shadow_offset, y + height + shadow_offset],
+                radius=border_radius,
+                fill=(0, 0, 0, shadow_alpha)
+            )
         
-        # Draw button text
+        # Parse bg_color if it's hex
+        if isinstance(bg_color, str) and bg_color.startswith('#'):
+            bg_rgb = tuple(int(bg_color[i:i+2], 16) for i in (1, 3, 5))
+        else:
+            bg_rgb = (255, 102, 0)  # Default orange
+        
+        # Draw button background with slight gradient effect (lighter at top)
+        # Main button body
+        draw.rounded_rectangle([x, y, x + width, y + height], radius=border_radius, fill=bg_rgb + (255,))
+        
+        # Add subtle highlight at top for depth
+        highlight_height = height // 3
+        draw.rounded_rectangle(
+            [x, y, x + width, y + highlight_height],
+            radius=border_radius,
+            fill=(255, 255, 255, 25)
+        )
+        
+        # Add subtle border for definition
+        border_color = tuple(max(0, c - 30) for c in bg_rgb)  # Slightly darker
+        draw.rounded_rectangle(
+            [x, y, x + width, y + height],
+            radius=border_radius,
+            outline=border_color + (200,),
+            width=2
+        )
+        
+        # Draw button text with shadow
         font = fonts['medium']
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
@@ -316,6 +485,10 @@ class TemplateManager:
         text_x = x + (width - text_width) // 2
         text_y = y + (height - text_height) // 2
         
+        # Text shadow
+        draw.text((text_x + 2, text_y + 2), text, font=font, fill=(0, 0, 0, 120))
+        
+        # Main text
         draw.text((text_x, text_y), text, font=font, fill=text_color)
         
         # Draw website below button if provided

@@ -96,8 +96,30 @@ if 'form_color_scheme' not in st.session_state:
     st.session_state.form_color_scheme = "Brand Colors"
 if 'is_generating' not in st.session_state:
     st.session_state.is_generating = False
+if 'use_template_system' not in st.session_state:
+    st.session_state.use_template_system = False
 
 def main():
+    # Template Editor Interface (Full Width) - Check first before showing main header
+    if st.session_state.get('show_template_editor', False):
+        # Simple header for template editor only
+        st.title("Cur8er")
+        st.caption("Create stunning advertisements with AI-powered image generation")
+        st.markdown("---")
+        
+        # Close button
+        if st.button("❌ Close Template Editor", key="close_editor_main"):
+            st.session_state.show_template_editor = False
+            st.rerun()
+        
+        # Import and show template editor with full width
+        from utils.template_editor import show_template_editor
+        show_template_editor()
+        
+        # Don't show the main content when editor is open
+        st.stop()
+    
+    # Main page header (only shown when NOT in template editor)
     st.title("🎨 Cur8er")
     st.markdown("Create stunning advertisements with AI-powered image generation")
     st.info("ℹ️ Configure your ad settings in the left column and click 'Generate Ad' to create your advertisement")
@@ -134,28 +156,6 @@ def main():
         # Don't show the main content when editor is open
         st.stop()
     
-    # Template Editor Interface (Full Width)
-    if st.session_state.get('show_template_editor', False):
-        st.markdown("---")
-        st.header("🎨 Template Editor")
-        st.info("💡 Create and customize advertisement templates with precise element positioning")
-        
-        # Close button at the top
-        if st.button("❌ Close Template Editor", key="close_editor_main"):
-            st.session_state.show_template_editor = False
-            st.rerun()
-        
-        # Import and show template editor with full width
-        from utils.template_editor import show_template_editor
-        show_template_editor()
-        
-        st.markdown("---")
-        st.markdown("### 👆 Template editor above - Use the controls to create custom templates")
-        st.markdown("**💡 Tip:** Close the editor above to return to ad generation")
-        
-        # Don't show the main content when editor is open
-        st.stop()
-    
     # Main content area - 3 column layout for optimal organization
     input_col, middle_col, actions_col = st.columns([1, 2, 1], gap="medium")
     
@@ -163,17 +163,23 @@ def main():
     with input_col:
         st.header("🎯 Configuration")
         
-        # Company/Client input
-        company_name = st.text_input(
-            "Company/Client Name", 
-            value=st.session_state.form_company_name,
-            placeholder="Enter company name...",
-            key="company_name_input",
-            on_change=lambda: setattr(st.session_state, 'form_company_name', st.session_state.company_name_input)
+        # Template system toggle - moved to top
+        use_template = st.checkbox(
+            "Use Template System", 
+            value=st.session_state.use_template_system, 
+            key="template_toggle",
+            on_change=lambda: setattr(st.session_state, 'use_template_system', st.session_state.template_toggle)
         )
         
-        # Template system toggle
-        use_template = st.checkbox("Use Template System", value=False, key="template_toggle")
+        # Company/Client name - always needed (either standalone or from template)
+        if not use_template:
+            company_name = st.text_input(
+                "Company/Client Name", 
+                value=st.session_state.form_company_name,
+                placeholder="Enter company name...",
+                key="company_name_input",
+                on_change=lambda: setattr(st.session_state, 'form_company_name', st.session_state.company_name_input)
+            )
         
         # Template selection if enabled
         if use_template:
@@ -191,6 +197,58 @@ def main():
                     if st.button("✏️ Edit", help="Edit templates", width='stretch'):
                         st.session_state.show_template_editor = True
                         st.rerun()
+                
+                # Get template variables and generate dynamic form fields
+                st.markdown("#### 📝 Template Content")
+                template_vars = template_manager.get_template_variables(selected_template)
+                
+                # Initialize session state for template fields
+                if 'template_values' not in st.session_state:
+                    st.session_state.template_values = {}
+                
+                # Generate dynamic input fields based on template variables
+                for var_info in template_vars:
+                    var_name = var_info['variable']
+                    
+                    # Skip logo - it has its own uploader below
+                    if var_name == 'logo':
+                        continue
+                    
+                    # Initialize in session state if not present
+                    if var_name not in st.session_state.template_values:
+                        st.session_state.template_values[var_name] = ""
+                    
+                    # Create appropriate input field based on type
+                    if var_info['type'] == 'textarea':
+                        st.session_state.template_values[var_name] = st.text_area(
+                            var_info['label'],
+                            value=st.session_state.template_values[var_name],
+                            placeholder=var_info['placeholder'],
+                            height=100,
+                            key=f"template_{var_name}"
+                        )
+                    elif var_info['type'] == 'text':
+                        st.session_state.template_values[var_name] = st.text_input(
+                            var_info['label'],
+                            value=st.session_state.template_values[var_name],
+                            placeholder=var_info['placeholder'],
+                            key=f"template_{var_name}"
+                        )
+                
+                st.info("ℹ️ These fields are dynamically generated based on your template elements")
+                
+                # Always show website URL field for template mode (may not be in template variables)
+                st.markdown("#### 🌐 Additional Information")
+                if 'template_website' not in st.session_state:
+                    st.session_state.template_website = ""
+                
+                st.session_state.template_website = st.text_input(
+                    "Website URL (Optional)",
+                    value=st.session_state.template_website,
+                    placeholder="https://example.com",
+                    help="Website URL - will be used if template includes website element",
+                    key="template_website_input"
+                )
             else:
                 selected_template = None
                 st.info("No templates available. Create templates using the Template Editor.")
@@ -202,27 +260,54 @@ def main():
         
         st.divider()
         
-        # Custom prompt for LLM
-        user_prompt = st.text_area(
+        # Custom prompt for LLM - ALWAYS shown for visual instructions
+        # Initialize session state for LLM instructions if needed
+        if 'form_llm_instructions' not in st.session_state:
+            st.session_state.form_llm_instructions = ""
+        
+        llm_instructions = st.text_area(
             "Custom Prompt (LLM Instructions)",
-            value=st.session_state.form_user_prompt,
-            placeholder="Enter detailed instructions for the AI to create your advertisement...",
-            help="💡 This is your custom prompt that instructs the AI model on what to generate",
+            value=st.session_state.form_llm_instructions,
+            placeholder="Enter detailed instructions for the AI to create your advertisement (e.g., 'Add a Christmas tree image', 'Use sunset colors', 'Include mountains in background')...",
+            help="💡 This is your custom prompt that instructs the AI model on what to generate. For templates, this controls the background generation.",
             height=100,
-            key="user_prompt_input",
-            on_change=lambda: setattr(st.session_state, 'form_user_prompt', st.session_state.user_prompt_input)
+            key="llm_instructions_input",
+            on_change=lambda: setattr(st.session_state, 'form_llm_instructions', st.session_state.llm_instructions_input)
         )
         
-        # Ad medium
-        medium_options = ["Social Media", "Print", "Digital Display", "Email", "Web Banner"]
-        medium_index = medium_options.index(st.session_state.form_ad_medium) if st.session_state.form_ad_medium in medium_options else 0
-        ad_medium = st.selectbox(
-            "Medium/Platform:",
-            options=medium_options,
-            index=medium_index,
-            key="ad_medium_select",
-            on_change=lambda: setattr(st.session_state, 'form_ad_medium', st.session_state.ad_medium_select)
-        )
+        # Ad medium - disabled when using template (template defines the medium/size)
+        if not use_template:
+            medium_options = ["Social Media", "Print", "Digital Display", "Email", "Web Banner"]
+            medium_index = medium_options.index(st.session_state.form_ad_medium) if st.session_state.form_ad_medium in medium_options else 0
+            ad_medium = st.selectbox(
+                "Medium/Platform:",
+                options=medium_options,
+                index=medium_index,
+                key="ad_medium_select",
+                on_change=lambda: setattr(st.session_state, 'form_ad_medium', st.session_state.ad_medium_select)
+            )
+        else:
+            # Auto-detect medium from template dimensions
+            if selected_template:
+                template_manager = TemplateManager()
+                template = template_manager.get_template(selected_template)
+                if template:
+                    dims = template.get('dimensions', [1080, 1080])
+                    template_name = template.get('name', '')
+                    # Infer medium from template name or dimensions
+                    if 'billboard' in template_name.lower() or 'landscape' in template_name.lower():
+                        ad_medium = "Digital Display"
+                    elif 'social' in template_name.lower() or 'square' in template_name.lower():
+                        ad_medium = "Social Media"
+                    elif 'banner' in template_name.lower():
+                        ad_medium = "Web Banner"
+                    else:
+                        ad_medium = "Social Media"  # Default
+                    st.info(f"📐 Medium: **{ad_medium}** (from template)")
+                else:
+                    ad_medium = "Social Media"
+            else:
+                ad_medium = "Social Media"
         
         # Style preset
         style_options = [
@@ -244,37 +329,52 @@ def main():
             on_change=lambda: setattr(st.session_state, 'form_style_preset', st.session_state.style_preset_select)
         )
         
-        # Ad size selector
-        st.subheader("📏 Select Sizes")
-        size_options = [
-            "Square (1080x1080) - Instagram Post",
-            "Landscape (1920x1080) - YouTube Thumbnail", 
-            "Portrait (1080x1920) - Instagram Story",
-            "Banner (728x90) - Web Banner",
-            "Leaderboard (970x250) - Web Header",
-            "Facebook Cover (820x312)",
-            "LinkedIn Post (1200x627)",
-            "Custom Size"
-        ]
-        size_index = size_options.index(st.session_state.form_ad_size) if st.session_state.form_ad_size in size_options else 0
-        ad_size = st.selectbox(
-            "Select ad size:",
-            options=size_options,
-            index=size_index,
-            key="ad_size_select",
-            on_change=lambda: setattr(st.session_state, 'form_ad_size', st.session_state.ad_size_select)
-        )
-        
-        # Custom size inputs if selected
-        if ad_size == "Custom Size":
-            col1, col2 = st.columns(2)
-            with col1:
-                custom_width = st.number_input("Width (px)", min_value=100, max_value=4000, value=1080)
-            with col2:
-                custom_height = st.number_input("Height (px)", min_value=100, max_value=4000, value=1080)
-            dimensions = (custom_width, custom_height)
+        # Ad size selector - disabled when using template (template has fixed dimensions)
+        if not use_template:
+            st.subheader("📏 Select Sizes")
+            size_options = [
+                "Square (1080x1080) - Instagram Post",
+                "Landscape (1920x1080) - YouTube Thumbnail", 
+                "Portrait (1080x1920) - Instagram Story",
+                "Banner (728x90) - Web Banner",
+                "Leaderboard (970x250) - Web Header",
+                "Facebook Cover (820x312)",
+                "LinkedIn Post (1200x627)",
+                "Custom Size"
+            ]
+            size_index = size_options.index(st.session_state.form_ad_size) if st.session_state.form_ad_size in size_options else 0
+            ad_size = st.selectbox(
+                "Select ad size:",
+                options=size_options,
+                index=size_index,
+                key="ad_size_select",
+                on_change=lambda: setattr(st.session_state, 'form_ad_size', st.session_state.ad_size_select)
+            )
+            
+            # Custom size inputs if selected
+            if ad_size == "Custom Size":
+                col1, col2 = st.columns(2)
+                with col1:
+                    custom_width = st.number_input("Width (px)", min_value=100, max_value=4000, value=1080)
+                with col2:
+                    custom_height = st.number_input("Height (px)", min_value=100, max_value=4000, value=1080)
+                dimensions = (custom_width, custom_height)
+            else:
+                dimensions = Config.get_dimensions(ad_size)
         else:
-            dimensions = Config.get_dimensions(ad_size)
+            # Get dimensions from template
+            if selected_template:
+                template_manager = TemplateManager()
+                template = template_manager.get_template(selected_template)
+                if template:
+                    dims = template.get('dimensions', [1080, 1080])
+                    dimensions = tuple(dims)
+                    st.subheader("📏 Template Dimensions")
+                    st.info(f"🎯 Size: **{dimensions[0]} × {dimensions[1]}** pixels (from template)")
+                else:
+                    dimensions = (1080, 1080)
+            else:
+                dimensions = (1080, 1080)
         
         # Logo upload
         uploaded_logo = st.file_uploader(
@@ -325,9 +425,14 @@ def main():
             include_text = st.checkbox("Include text overlay", value=True)
             include_cta = st.checkbox("Include call-to-action", value=False)
             
-            # Website and tagline
-            client_website = st.text_input("Website (optional)", placeholder="https://example.com")
-            client_tagline = st.text_input("Tagline (optional)", placeholder="Your company slogan...")
+            # Website and tagline - only show input if NOT using template (template has its own sections)
+            if not use_template:
+                client_website = st.text_input("Website (optional)", placeholder="https://example.com")
+                client_tagline = st.text_input("Tagline (optional)", placeholder="Your company slogan...")
+            else:
+                # Get from template values (from dynamic fields or additional info section)
+                client_website = st.session_state.get('template_website', '')
+                client_tagline = st.session_state.template_values.get('client_tagline', '')
 
     
     # MIDDLE COLUMN: Model Selection, Preview, Generation Details
@@ -599,24 +704,50 @@ def main():
     # RIGHT COLUMN: Actions and Controls
     with actions_col:
         st.header("🎨 Actions")
-        
         # Generate button (always at top)
         if st.button("🚀 Generate Ad", type="primary", width='stretch'):
+            # Get values based on whether template is used
+            if use_template:
+                company_name_final = st.session_state.template_values.get('client_name', '')
+                main_message_text = st.session_state.template_values.get('main_message', '')
+                client_website_final = st.session_state.template_values.get('client_website', '')
+                client_tagline_final = st.session_state.template_values.get('client_tagline', '')
+                cta_text_final = st.session_state.template_values.get('cta_text', '')
+                
+                # IMPORTANT: For template mode, ONLY use visual instructions for background
+                # Do NOT include main_message in the AI prompt to avoid duplicate text
+                # The template system will overlay all text elements (main_message, company name, etc.)
+                if llm_instructions.strip():
+                    user_prompt_final = llm_instructions.strip()
+                else:
+                    # If no visual instructions, use a generic background request
+                    if company_name_final.strip():
+                        user_prompt_final = f"Professional abstract background suitable for {company_name_final} advertisement"
+                    else:
+                        user_prompt_final = "Professional modern abstract background for advertisement"
+            else:
+                company_name_final = company_name
+                user_prompt_final = llm_instructions
+                main_message_text = llm_instructions  # In non-template mode, same as prompt
+                client_website_final = client_website
+                client_tagline_final = client_tagline
+                cta_text_final = ""
+            
             # Validate inputs - only client name is required
-            if not company_name.strip():
+            if not company_name_final.strip():
                 st.error("⚠️ Please enter a company name to generate the advertisement.")
             else:
                 # Optional field warnings
                 missing_fields = []
-                if not user_prompt.strip():
+                if not user_prompt_final.strip():
                     missing_fields.append("Advertisement prompt")
                 
                 if missing_fields:
                     st.warning(f"ℹ️ Optional fields not filled: {', '.join(missing_fields)}. Continuing with available information.")
                 
                 # Show prompt suggestions if prompt exists
-                if user_prompt.strip():
-                    suggestions = suggest_prompt_improvements(user_prompt, style_preset, ad_medium)
+                if user_prompt_final.strip():
+                    suggestions = suggest_prompt_improvements(user_prompt_final, style_preset, ad_medium)
                     if suggestions:
                         with st.expander("💡 Prompt Suggestions"):
                             for suggestion in suggestions:
@@ -627,20 +758,23 @@ def main():
                 
                 # Store parameters and set generating flag
                 st.session_state.pending_generation = {
-                    'prompt': user_prompt or f"Professional advertisement for {company_name}",
-                    'company_name': company_name,
-                    'client_website': client_website,
-                    'client_tagline': client_tagline,
+                    'prompt': user_prompt_final.strip() if user_prompt_final and user_prompt_final.strip() else f"Professional advertisement for {company_name_final}",
+                    'company_name': company_name_final,
+                    'client_website': client_website_final,
+                    'client_tagline': client_tagline_final,
+                    'cta_text': cta_text_final,
+                    'main_message': main_message_text if use_template else user_prompt_final,  # Separate main message for template overlay
                     'dimensions': dimensions,
                     'ad_medium': ad_medium,
                     'selected_ai_model': selected_ai_model,
                     'style_preset': style_preset,
                     'color_scheme': color_scheme,
                     'include_text': include_text,
-                    'include_cta': include_cta,
+                    'include_cta': include_cta or bool(cta_text_final),  # Enable if CTA text provided
                     'uploaded_logo': uploaded_logo,
                     'selected_template': selected_template if use_template else None,
-                    'reference_images': reference_images
+                    'reference_images': reference_images,
+                    'use_template': use_template
                 }
                 st.session_state.is_generating = True
                 st.rerun()
@@ -666,7 +800,9 @@ def main():
                     params['include_cta'],
                     params['uploaded_logo'],
                     params['selected_template'],
-                    params['reference_images']
+                    params['reference_images'],
+                    params.get('cta_text', ''),
+                    params.get('main_message', '')
                 )
         
         st.divider()
@@ -881,7 +1017,7 @@ def main():
                     current_model = st.session_state.get('selected_model', 'DALL-E 3')
                     test_api_connection(current_model)
 
-def generate_ad(prompt, client_name, client_website, client_tagline, dimensions, medium, model, style, color_scheme, include_text, include_cta, logo, template_id=None, reference_images=None):
+def generate_ad(prompt, client_name, client_website, client_tagline, dimensions, medium, model, style, color_scheme, include_text, include_cta, logo, template_id=None, reference_images=None, cta_text="", main_message=""):
     """Generate advertisement using AI"""
     
     # CRITICAL: Validate client name input (this is the most important field)
@@ -1047,19 +1183,26 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                         st.write(f"🔍 Debug - Applying brand elements:")
                         st.write(f"   📝 Client Name: '{client_name}' (Length: {len(client_name)})")
                         st.write(f"   🏷️ Tagline: '{client_tagline}' (Length: {len(client_tagline) if client_tagline else 0})")
-                        st.write(f"   💬 Message: '{prompt}' (Length: {len(prompt) if prompt else 0})")
+                        st.write(f"   💬 Prompt (for background): '{prompt}' (Length: {len(prompt) if prompt else 0})")
+                        st.write(f"   📄 Main Message (for overlay): '{main_message}' (Length: {len(main_message) if main_message else 0})")
+                        st.write(f"   🔘 CTA Text: '{cta_text}' (Length: {len(cta_text) if cta_text else 0})")
                         st.write(f"   🎨 Template: {template_id}")
                         
-                        # Apply brand elements to template
+                        # Apply brand elements to template - use custom CTA text if provided
+                        final_cta_text = cta_text if cta_text else ("SHOP NOW" if include_cta else "")
+                        
+                        # Use main_message for overlay if provided (template mode), otherwise use prompt
+                        overlay_message = main_message if main_message and main_message.strip() else (prompt if prompt and prompt.strip() else f"Advertisement for {client_name}")
+                        
                         final_image = template_manager.apply_brand_elements(
                             background_image=background_image,
                             template_id=template_id,
                             logo=logo_processed,
                             client_name=client_name,
-                            tagline=client_tagline if client_tagline.strip() else "",
-                            main_message=prompt if prompt.strip() else f"Advertisement for {client_name}",
-                            cta_text="SHOP NOW" if include_cta else "",
-                            website=client_website if client_website.strip() else "",
+                            tagline=client_tagline if client_tagline and client_tagline.strip() else "",
+                            main_message=overlay_message,
+                            cta_text=final_cta_text,
+                            website=client_website if client_website and client_website.strip() else "",
                             color_scheme=color_scheme
                         )
                         
@@ -1245,7 +1388,10 @@ def regenerate_ad():
             True,
             True,
             st.session_state.client_logo,
-            params.get("template_used", None)
+            params.get("template_used", None),
+            None,  # reference_images
+            params.get("cta_text", ""),  # cta_text
+            params.get("main_message", "")  # main_message
         )
 
 def download_ad_with_format(format_type):
