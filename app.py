@@ -1297,6 +1297,51 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                             size=dimensions,
                             client_logo=logo_processed
                         )
+                    
+                    # Post-process: Add website URL overlay if provided (since AI may not render it accurately)
+                    if generated_image and client_website and client_website.strip():
+                        from PIL import ImageDraw, ImageFont
+                        
+                        # Create a copy for overlay
+                        result_image = generated_image.copy()
+                        draw = ImageDraw.Draw(result_image, 'RGBA')
+                        
+                        # Position website at bottom center
+                        img_width, img_height = result_image.size
+                        website_text = client_website.strip()
+                        
+                        # Try to load appropriate font
+                        try:
+                            font_size = max(20, min(36, img_width // 40))  # Scale with image
+                            font = ImageFont.truetype("arial.ttf", font_size)
+                        except:
+                            font = ImageFont.load_default()
+                        
+                        # Get text dimensions
+                        bbox = draw.textbbox((0, 0), website_text, font=font)
+                        text_width = bbox[2] - bbox[0]
+                        text_height = bbox[3] - bbox[1]
+                        
+                        # Position at bottom center with margin
+                        margin = max(20, img_height // 40)
+                        text_x = (img_width - text_width) // 2
+                        text_y = img_height - text_height - margin
+                        
+                        # Draw semi-transparent backdrop
+                        padding = 12
+                        draw.rounded_rectangle(
+                            [text_x - padding, text_y - padding,
+                             text_x + text_width + padding, text_y + text_height + padding],
+                            radius=6,
+                            fill=(0, 0, 0, 120)
+                        )
+                        
+                        # Draw website text with shadow
+                        draw.text((text_x + 2, text_y + 2), website_text, font=font, fill=(0, 0, 0, 150))
+                        draw.text((text_x, text_y), website_text, font=font, fill=(255, 255, 255, 255))
+                        
+                        generated_image = result_image
+                        st.info(f"✅ Added website URL overlay: {website_text}")
                 
                 # Step 4: Save and finalize
                 if generated_image:

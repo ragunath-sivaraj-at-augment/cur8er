@@ -247,11 +247,14 @@ def show_template_editor():
             - `{{client_tagline}}` - Company slogan  
             - `{{main_message}}` - Advertisement main message/description
             - `{{cta_text}}` - Call-to-action button text
-            - `{{client_website}}` - Website URL
+            - `{{client_website}}` - Website URL (can be used as text element or with button)
             
             **Special Elements:**
             - `{{logo}}` - Company logo placement
             - Custom text and shapes
+            
+            **💡 Note:** All variables are optional. Elements with empty values won't be displayed.
+            You can use `{{client_website}}` as a standalone text element anywhere in your template!
             """)
         
         with st.expander("📐 Layout Tips", expanded=False):

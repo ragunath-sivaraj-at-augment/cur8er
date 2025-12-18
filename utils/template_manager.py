@@ -491,10 +491,31 @@ class TemplateManager:
         # Main text
         draw.text((text_x, text_y), text, font=font, fill=text_color)
         
-        # Draw website below button if provided
-        if website:
-            website_y = y + height + 10
-            draw.text((x, website_y), website, font=fonts['small'], fill="#CCCCCC")
+        # Draw website below button if provided - with backdrop for visibility
+        if website and website.strip():
+            website_font = fonts['small']
+            website_y = y + height + 15
+            
+            # Get website text dimensions
+            website_bbox = draw.textbbox((0, 0), website, font=website_font)
+            website_width = website_bbox[2] - website_bbox[0]
+            website_height = website_bbox[3] - website_bbox[1]
+            
+            # Center website below button
+            website_x = x + (width - website_width) // 2
+            
+            # Draw semi-transparent backdrop behind website
+            padding = 8
+            draw.rounded_rectangle(
+                [website_x - padding, website_y - padding, 
+                 website_x + website_width + padding, website_y + website_height + padding],
+                radius=4,
+                fill=(0, 0, 0, 80)
+            )
+            
+            # Draw website text with shadow
+            draw.text((website_x + 1, website_y + 1), website, font=website_font, fill=(0, 0, 0, 100))
+            draw.text((website_x, website_y), website, font=website_font, fill="#FFFFFF")
     
     def _draw_custom_shape(self, draw, position: Dict, size: Dict, style: Dict):
         """Draw custom shape element"""
