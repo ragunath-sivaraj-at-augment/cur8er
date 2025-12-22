@@ -8,9 +8,23 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 from typing import Dict, List, Tuple, Optional
 from .prompts import PromptBuilder
+from .template_prompts import get_ai_native_prompt, get_overlay_mode_prompt
 
 class TemplateManager:
     """Manages advertisement templates with placeholder areas for brand elements"""
+    
+    # Zone-to-position mapping for flexible template layouts
+    ZONE_POSITIONS = {
+        'top-left': (0.05, 0.05),
+        'top-center': (0.4, 0.05),
+        'top-right': (0.75, 0.05),
+        'center-left': (0.05, 0.4),
+        'center': (0.35, 0.4),
+        'center-right': (0.75, 0.4),
+        'bottom-left': (0.05, 0.75),
+        'bottom-center': (0.35, 0.75),
+        'bottom-right': (0.7, 0.8),
+    }
     
     def __init__(self):
         self.templates_dir = "templates"
@@ -18,6 +32,35 @@ class TemplateManager:
         os.makedirs(self.templates_dir, exist_ok=True)
         os.makedirs(self.custom_templates_dir, exist_ok=True)
         # Removed load_default_templates() - only using custom templates now
+    
+    def _resolve_position(self, position: Dict, dimensions: List[int]) -> Dict:
+        """Convert zone-based or relative position to absolute pixels
+        
+        Supports:
+        - Absolute: {"x": 100, "y": 200}
+        - Zone-based: {"zone": "top-left", "style": "...", "integration": "..."}
+        """
+        width, height = dimensions if isinstance(dimensions, list) else [dimensions.get('width', 1920), dimensions.get('height', 1080)]
+        
+        # If already absolute position, return as-is
+        if 'x' in position and 'y' in position:
+            return position
+        
+        # If zone-based, convert to pixels
+        if 'zone' in position:
+            zone = position.get('zone', 'center')
+            if zone in self.ZONE_POSITIONS:
+                x_ratio, y_ratio = self.ZONE_POSITIONS[zone]
+                return {
+                    'x': int(width * x_ratio),
+                    'y': int(height * y_ratio),
+                    'zone': zone,  # Keep zone info for AI
+                    'style': position.get('style', ''),
+                    'integration': position.get('integration', '')
+                }
+        
+        # Fallback to center
+        return {'x': int(width * 0.35), 'y': int(height * 0.4)}
     
     def get_available_templates(self) -> Dict:
         """Return list of available custom templates"""
@@ -161,6 +204,7 @@ class TemplateManager:
         """Convert custom template format to standard template format"""
         # Extract element positions for compatibility
         elements = custom_template.get("elements", [])
+        dimensions = custom_template.get("dimensions", [1080, 1080])
         
         # Find key areas from elements
         logo_area = None
@@ -170,44 +214,61 @@ class TemplateManager:
         cta_area = None
         
         for element in elements:
+            # NEW STRUCTURE: placement_hint at element level (no position dict)
+            if "placement_hint" in element:
+                # For AI-native templates with semantic positioning, skip area extraction
+                # These templates don't need pixel-based areas
+                continue
+            
+            # OLD STRUCTURE: position dict exists
+            if "position" not in element:
+                continue
+                
+            # Resolve position (zone or pixel)
+            position = self._resolve_position(element["position"], dimensions)
+            
+            # Get size with fallback defaults
+            size = element.get("size", {})
+            elem_width = size.get("width", 300)
+            elem_height = size.get("height", 100)
+            
             if element["type"] == "logo":
                 logo_area = {
-                    "x": element["position"]["x"],
-                    "y": element["position"]["y"], 
-                    "width": element["size"]["width"],
-                    "height": element["size"]["height"]
+                    "x": position["x"],
+                    "y": position["y"], 
+                    "width": elem_width,
+                    "height": elem_height
                 }
             elif element["type"] == "text" and "client_name" in element.get("content", ""):
                 title_area = {
-                    "x": element["position"]["x"],
-                    "y": element["position"]["y"],
-                    "width": element["size"]["width"], 
-                    "height": element["size"]["height"]
+                    "x": position["x"],
+                    "y": position["y"],
+                    "width": elem_width, 
+                    "height": elem_height
                 }
             elif element["type"] == "text" and "tagline" in element.get("content", ""):
                 tagline_area = {
-                    "x": element["position"]["x"],
-                    "y": element["position"]["y"],
-                    "width": element["size"]["width"],
-                    "height": element["size"]["height"]
+                    "x": position["x"],
+                    "y": position["y"],
+                    "width": elem_width,
+                    "height": elem_height
                 }
             elif element["type"] == "text" and ("main_message" in element.get("content", "") or "prompt" in element.get("content", "")):
                 content_area = {
-                    "x": element["position"]["x"],
-                    "y": element["position"]["y"],
-                    "width": element["size"]["width"],
-                    "height": element["size"]["height"]
+                    "x": position["x"],
+                    "y": position["y"],
+                    "width": elem_width,
+                    "height": elem_height
                 }
-            elif element["type"] == "button":
+            elif element["type"] in ["button", "cta"]:
                 cta_area = {
-                    "x": element["position"]["x"],
-                    "y": element["position"]["y"],
-                    "width": element["size"]["width"],
-                    "height": element["size"]["height"]
+                    "x": position["x"],
+                    "y": position["y"],
+                    "width": elem_width,
+                    "height": elem_height
                 }
         
         # Provide defaults if areas not found
-        dimensions = custom_template.get("dimensions", [1080, 1080])
         width, height = dimensions
         
         return {
@@ -224,36 +285,183 @@ class TemplateManager:
     
     
     def create_template_background(self, template_id: str, style: str, color_scheme: str, 
-                                 content_prompt: str) -> str:
-        """Generate AI prompt for template background creation with NO text conflicts
+                                 content_prompt: str, template_data: Dict = None, data: Dict = None) -> str:
+        """Generate AI prompt for template background creation
         
-        The content_prompt (user's custom prompt) is the PRIMARY instruction for background generation.
-        If provided, it completely drives the visual generation with template context as secondary.
+        Supports two modes:
+        1. OVERLAY MODE (default): AI generates background, text added as overlays
+        2. AI-NATIVE MODE: AI generates everything including text as part of scene (for cinematic templates)
+        
+        AI-native mode activated when template has 'design_rules' field.
+        
+        Args:
+            data: Dict with actual values (client_name, main_message, etc.) for AI-native mode
         """
-        template = self.get_template(template_id)
+        template = template_data if template_data else self.get_template(template_id)
         if not template:
             return ""
         
-        # If user provided custom prompt, use it as the PRIMARY instruction
-        if content_prompt and content_prompt.strip():
-            # Use the custom prompt directly as the main instruction
-            # Add template context only to ensure proper sizing and no text
-            dimensions = template.get("dimensions", [1920, 1080])
-            width = dimensions[0] if isinstance(dimensions, list) and len(dimensions) >= 2 else 1920
-            height = dimensions[1] if isinstance(dimensions, list) and len(dimensions) >= 2 else 1080
+        # Check if this is an AI-native cinematic template
+        design_rules = template.get("design_rules", [])
+        is_ai_native = bool(design_rules)
+        data = data or {}
+        
+        # Get dimensions
+        dimensions = template.get("dimensions", [1920, 1080])
+        width = dimensions[0] if isinstance(dimensions, list) and len(dimensions) >= 2 else 1920
+        height = dimensions[1] if isinstance(dimensions, list) and len(dimensions) >= 2 else 1080
+        
+        # Analyze element positions to guide AI composition
+        elements = template.get("custom_elements", []) or template.get("elements", [])
+        spatial_guidance = []
+        zone_styles = []  # Collect zone-specific styling hints
+        text_elements_for_ai = []  # For AI-native mode: collect actual text content
+        
+        if elements:
+            # Identify key zones where elements will be placed
+            for element in elements:
+                elem_type = element.get("type")
+                content = element.get("content", "")
+                
+                # NEW STRUCTURE: placement_hint, priority, integration at element level
+                if "placement_hint" in element:
+                    placement_hint = element.get("placement_hint", "")
+                    priority = element.get("priority", "medium")
+                    integration = element.get("integration", "")
+                    
+                    if elem_type in ["text", "button", "cta", "logo"]:
+                        # For AI-native mode: collect text content and replace variables
+                        if is_ai_native and content:
+                            # Replace template variables with actual values
+                            actual_content = content
+                            for var_name, var_value in data.items():
+                                placeholder = f"{{{{{var_name}}}}}"
+                                if placeholder in actual_content and var_value:
+                                    actual_content = actual_content.replace(placeholder, var_value)
+                            
+                            # Only include if not still a template variable
+                            if not actual_content.startswith("{{") and actual_content.strip():
+                                # Get style_hint from element style dict
+                                element_style = element.get("style", {})
+                                visual_hint = element_style.get("style_hint", "")
+                                
+                                text_elem = {
+                                    "type": elem_type,
+                                    "content": actual_content,
+                                    "placement_hint": placement_hint,
+                                    "priority": priority,
+                                    "integration": integration,
+                                    "style_hint": visual_hint
+                                }
+                                text_elements_for_ai.append(text_elem)
+                
+                # OLD STRUCTURE: position dict with zone/priority (backward compatibility)
+                elif "position" in element:
+                    position_config = element.get("position", {})
+                    style_hint = element.get("style_hint", "")
+                    
+                    # Check if zone-based positioning BEFORE resolving
+                    if 'zone' in position_config:
+                        zone = position_config.get('zone', '')
+                        elem_style = position_config.get('style', '') or style_hint
+                        integration = position_config.get('integration', '')
+                        priority = position_config.get('priority', 'medium')
+                        
+                        if elem_type in ["text", "button", "cta", "logo"]:
+                            zone_desc = f"{elem_type} in {zone}"
+                            if elem_style:
+                                zone_desc += f" (style: {elem_style})"
+                            if integration:
+                                zone_desc += f" ({integration})"
+                            zone_styles.append(zone_desc)
+                            spatial_guidance.append(zone)
+                            
+                            # For AI-native mode: collect text content and replace variables
+                            if is_ai_native and content:
+                                # Replace template variables with actual values
+                                actual_content = content
+                                for var_name, var_value in data.items():
+                                    placeholder = f"{{{{{var_name}}}}}"
+                                    if placeholder in actual_content and var_value:
+                                        actual_content = actual_content.replace(placeholder, var_value)
+                                
+                                # Only include if not still a template variable
+                                if not actual_content.startswith("{{") and actual_content.strip():
+                                    # Get style_hint from element style dict, ignore font specs
+                                    element_style = element.get("style", {})
+                                    visual_hint = element_style.get("style_hint", "") or elem_style
+                                    
+                                    text_elem = {
+                                        "zone": zone,
+                                        "type": elem_type,
+                                        "content": actual_content,
+                                        "style_hint": visual_hint,
+                                        "integration": integration,
+                                        "priority": priority
+                                    }
+                                    text_elements_for_ai.append(text_elem)
+                    else:
+                        # Pixel-based - resolve and calculate relative position
+                        position = self._resolve_position(position_config, [width, height])
+                        x = position.get('x', 0)
+                        y = position.get('y', 0)
+                        
+                        # Fallback to relative position calculation
+                        if y < height * 0.3:
+                            vertical = "top"
+                        elif y < height * 0.7:
+                            vertical = "center"
+                        else:
+                            vertical = "bottom"
+                        
+                        if x < width * 0.3:
+                            horizontal = "left"
+                        elif x < width * 0.7:
+                            horizontal = "center-horizontal"
+                        else:
+                            horizontal = "right"
+                        
+                        if elem_type in ["text", "button"]:
+                            spatial_guidance.append(f"{vertical} {horizontal}")
+        
+        # MODE 1: AI-NATIVE CINEMATIC MODE - AI generates EVERYTHING including text
+        if is_ai_native and text_elements_for_ai:
+            has_logo = data.get('logo') or any(elem.get('type') == 'logo' for elem in elements)
+            template_style = template.get('background_style', {})
             
-            base_prompt = f"{content_prompt.strip()}"
-            base_prompt += f"\n\nIMPORTANT REQUIREMENTS:\n"
-            base_prompt += f"- Create a {width}x{height}px background image\n"
-            base_prompt += f"- Do not include any text, words, letters, or typography in the image\n"
-            base_prompt += f"- Keep visual elements balanced and not overly busy, as text and other elements will be overlaid\n"
-            base_prompt += f"- Avoid placing detailed objects or high-contrast patterns in the center and upper portions where text will appear\n"
-            base_prompt += f"- Use subtle gradients or soft focus for background depth to ensure overlaid elements remain clearly visible\n"
-            base_prompt += f"- Main visual interest should be in the background layer, not competing with foreground text placement"
+            base_prompt = get_ai_native_prompt(
+                content_prompt=content_prompt,
+                width=width,
+                height=height,
+                template_style=template_style,
+                design_rules=design_rules,
+                text_elements=text_elements_for_ai,
+                has_logo=has_logo
+            )
+            
+            if style and style != "Professional":
+                base_prompt += f"\nOverall style: {style}"
+            if color_scheme and color_scheme != "Brand Colors":
+                base_prompt += f"\nColor scheme: {color_scheme}"
+                
+            return base_prompt
+        
+        # MODE 2: OVERLAY MODE - AI generates background only, text added separately  
+        if content_prompt and content_prompt.strip():
+            template_style = template.get('background_style', {})
+            
+            base_prompt = get_overlay_mode_prompt(
+                content_prompt=content_prompt.strip(),
+                width=width,
+                height=height,
+                template_style=template_style,
+                spatial_guidance=spatial_guidance,
+                zone_styles=zone_styles
+            )
             
             # Add style and color scheme guidance if specified
             if style and style != "Professional":
-                base_prompt += f" Style: {style}."
+                base_prompt += f"\n\nStyle: {style}."
             if color_scheme and color_scheme != "Brand Colors":
                 base_prompt += f" Color scheme: {color_scheme}."
             
@@ -295,9 +503,45 @@ class TemplateManager:
         return self._apply_standard_elements(background_image, template, logo, client_name, tagline, main_message, cta_text, website, color_scheme)
     
     def _apply_custom_elements(self, background_image: Image.Image, template: Dict, data: Dict) -> Image.Image:
-        """Apply custom template elements with advanced positioning"""
+        """Apply custom template elements with advanced positioning
+        
+        Supports two modes:
+        1. OVERLAY MODE: Elements rendered as PIL overlays (default)
+        2. AI-NATIVE MODE: Skip text overlays - only add logo (text already generated by AI when design_rules present)
+        """
+        # Check if AI-native template (text already in image)
+        design_rules = template.get("design_rules", [])
+        is_ai_native = bool(design_rules)
+        
+        if is_ai_native:
+            # AI-native mode: Only apply logo, skip all text elements
+            result_image = background_image.copy()
+            elements = template.get("elements", [])
+            dimensions = template.get("dimensions", [1920, 1080])
+            
+            for element in elements:
+                if element.get("type") == "logo" and data.get("logo"):
+                    # Apply just the logo
+                    position_config = element.get("position", {})
+                    position = self._resolve_position(position_config, dimensions)
+                    size = element.get("size", {})
+                    
+                    logo = data.get("logo")
+                    if logo:
+                        # Resize and place logo
+                        resized_logo = self._resize_logo_to_area(logo, size)
+                        if resized_logo:
+                            x, y = position.get('x', 0), position.get('y', 0)
+                            result_image.paste(resized_logo, (x, y), resized_logo if resized_logo.mode == 'RGBA' else None)
+            
+            return result_image
+        
+        # OVERLAY MODE: Continue with normal PIL overlay rendering
         result_image = background_image.copy()
         draw = ImageDraw.Draw(result_image)
+        
+        # Get dimensions for position resolution
+        dimensions = template.get("dimensions", [1920, 1080])
         
         try:
             # Load fonts
@@ -314,10 +558,13 @@ class TemplateManager:
         for element in template.get("custom_elements", []):
             try:
                 element_type = element.get("type")
-                position = element.get("position", {})
+                position_config = element.get("position", {})
                 size = element.get("size", {})
                 content = element.get("content", "")
                 style = element.get("style", {})
+                
+                # Resolve position (supports both pixel and zone-based)
+                position = self._resolve_position(position_config, dimensions)
                 
                 # Replace template variables in content
                 for var, value in data.items():
@@ -379,31 +626,32 @@ class TemplateManager:
         backdrop_height = text_height + (padding_v * 2)
         
         # Draw soft shadow for the backdrop (multiple layers for blur effect)
-        shadow_layers = 3
+        shadow_layers = 4
         for i in range(shadow_layers, 0, -1):
-            shadow_alpha = 30 - (i * 8)  # Decreasing opacity for softer shadow
-            shadow_offset = i * 2
+            shadow_alpha = 40 - (i * 8)  # Decreasing opacity for softer shadow
+            shadow_offset = i * 3
             draw.rounded_rectangle(
                 [backdrop_x + shadow_offset, backdrop_y + shadow_offset, 
                  backdrop_x + backdrop_width + shadow_offset, backdrop_y + backdrop_height + shadow_offset],
-                radius=8,
+                radius=12,
                 fill=(0, 0, 0, shadow_alpha)
             )
         
-        # Draw semi-transparent backdrop with subtle gradient effect
-        backdrop_alpha = 110  # Semi-transparent for blending
+        # Draw MORE transparent backdrop for better scene integration
+        backdrop_alpha = 75  # More transparent for better blending with scene
         draw.rounded_rectangle(
             [backdrop_x, backdrop_y, backdrop_x + backdrop_width, backdrop_y + backdrop_height],
-            radius=8,
-            fill=(0, 0, 0, backdrop_alpha)
+            radius=12,
+            fill=(10, 10, 15, backdrop_alpha)  # Slightly blue-tinted for depth
         )
         
-        # Add subtle border/highlight to backdrop for polish
+        # Add subtle inner glow/highlight for atmospheric effect
+        inner_glow_alpha = 20
         draw.rounded_rectangle(
-            [backdrop_x, backdrop_y, backdrop_x + backdrop_width, backdrop_y + backdrop_height],
-            radius=8,
-            outline=(255, 255, 255, 30),
-            width=1
+            [backdrop_x + 2, backdrop_y + 2, backdrop_x + backdrop_width - 2, backdrop_y + backdrop_height - 2],
+            radius=10,
+            outline=(255, 255, 255, inner_glow_alpha),
+            width=2
         )
         
         # Draw text with soft shadow for depth
@@ -429,7 +677,7 @@ class TemplateManager:
             image.paste(resized_logo, (x, y), resized_logo if resized_logo.mode == 'RGBA' else None)
     
     def _draw_custom_button(self, draw, text: str, position: Dict, size: Dict, style: Dict, fonts: Dict, website: str = ""):
-        """Draw custom button element with professional blending"""
+        """Draw custom button element with professional blending and scene integration"""
         from PIL import Image as PILImage
         
         x, y = position.get('x', 0), position.get('y', 0)
@@ -438,14 +686,14 @@ class TemplateManager:
         text_color = style.get('text_color', '#FFFFFF')
         border_radius = style.get('border_radius', 10)
         
-        # Draw multi-layer soft shadow for natural depth
-        shadow_layers = 4
+        # Draw multi-layer soft shadow for natural depth and atmospheric integration
+        shadow_layers = 5
         for i in range(shadow_layers, 0, -1):
-            shadow_alpha = 40 - (i * 8)  # Gradually decreasing opacity
-            shadow_offset = i * 2
+            shadow_alpha = 50 - (i * 8)  # Gradually decreasing opacity
+            shadow_offset = i * 3
             draw.rounded_rectangle(
                 [x + shadow_offset, y + shadow_offset, x + width + shadow_offset, y + height + shadow_offset],
-                radius=border_radius,
+                radius=border_radius + 2,
                 fill=(0, 0, 0, shadow_alpha)
             )
         
@@ -455,19 +703,36 @@ class TemplateManager:
         else:
             bg_rgb = (255, 102, 0)  # Default orange
         
-        # Draw button background with slight gradient effect (lighter at top)
-        # Main button body
-        draw.rounded_rectangle([x, y, x + width, y + height], radius=border_radius, fill=bg_rgb + (255,))
+        # Add atmospheric glow around button for integration
+        glow_padding = 8
+        for glow_layer in range(3, 0, -1):
+            glow_alpha = 15 + (glow_layer * 5)
+            glow_offset = glow_layer * 3
+            draw.rounded_rectangle(
+                [x - glow_offset, y - glow_offset, 
+                 x + width + glow_offset, y + height + glow_offset],
+                radius=border_radius + glow_offset,
+                fill=bg_rgb + (glow_alpha,)
+            )
         
-        # Add subtle highlight at top for depth
+        # Draw button background with gradient effect (lighter at top)
+        draw.rounded_rectangle([x, y, x + width, y + height], radius=border_radius, fill=bg_rgb + (245,))
+        
+        # Add subtle highlight at top for 3D depth
         highlight_height = height // 3
         draw.rounded_rectangle(
             [x, y, x + width, y + highlight_height],
             radius=border_radius,
-            fill=(255, 255, 255, 25)
+            fill=(255, 255, 255, 40)
         )
         
-        # Add subtle border for definition
+        # Add subtle inner border for definition
+        draw.rounded_rectangle(
+            [x + 2, y + 2, x + width - 2, y + height - 2],
+            radius=border_radius - 2,
+            outline=(255, 255, 255, 60),
+            width=2
+        )
         border_color = tuple(max(0, c - 30) for c in bg_rgb)  # Slightly darker
         draw.rounded_rectangle(
             [x, y, x + width, y + height],

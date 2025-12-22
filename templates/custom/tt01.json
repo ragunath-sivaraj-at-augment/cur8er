@@ -1,0 +1,121 @@
+{
+  "name": "tt01",
+  "dimensions": [
+    1920,
+    1080
+  ],
+  "elements": [
+    {
+      "type": "logo",
+      "id": "logo_1",
+      "position": {
+        "zone": "top-left",
+        "priority": "low",
+        "integration": "subtle, blended into environment"
+      },
+      "size": {
+        "width": 300,
+        "height": 150
+      },
+      "content": "{{logo}}",
+      "style": {
+        "opacity": 1.0
+      }
+    },
+    {
+      "type": "text",
+      "id": "title_1",
+      "position": {
+        "zone": "top-center",
+        "priority": "high",
+        "integration": "naturally embedded, cinematic"
+      },
+      "size": {
+        "width": 960,
+        "height": 135
+      },
+      "content": "{{client_name}}",
+      "style": {
+        "font_family": "Arial",
+        "font_size": 60,
+        "color": "#FFFFFF",
+        "weight": "bold",
+        "style_hint": "bold headline, glowing or softly lit, scene-matching color"
+      }
+    },
+    {
+      "type": "text",
+      "id": "tagline_1",
+      "position": {
+        "zone": "top-right",
+        "priority": "low",
+        "integration": "subtle, secondary text"
+      },
+      "size": {
+        "width": 640,
+        "height": 72
+      },
+      "content": "{{client_tagline}}",
+      "style": {
+        "font_family": "Arial",
+        "font_size": 30,
+        "color": "#CCCCCC",
+        "style_hint": "small, light, unobtrusive"
+      }
+    },
+    {
+      "type": "text",
+      "id": "main_message_1",
+      "position": {
+        "zone": "center-left",
+        "priority": "highest",
+        "integration": "part of the scene, readable but not flat"
+      },
+      "size": {
+        "width": 1536,
+        "height": 270
+      },
+      "content": "{{main_message}}",
+      "style": {
+        "font_family": "Arial",
+        "font_size": 48,
+        "color": "#FFFFFF",
+        "weight": "normal",
+        "style_hint": "clear, large, modern typography with subtle glow"
+      }
+    },
+    {
+      "type": "cta",
+      "id": "cta_button_1",
+      "position": {
+        "zone": "bottom-center",
+        "priority": "medium",
+        "integration": "designed element, not UI button"
+      },
+      "size": {
+        "width": 300,
+        "height": 100
+      },
+      "content": "{{cta_text}}",
+      "style": {
+        "bg_color": "#FF6600",
+        "text_color": "#FFFFFF",
+        "font_size": 32,
+        "border_radius": 10,
+        "style_hint": "futuristic call-to-action panel, rounded, glowing edges"
+      }
+    }
+  ],
+  "background_style": {
+    "style": "modern",
+    "color_scheme": "brand"
+  },
+  "positioning_mode": "zone",
+  "design_rules": [
+    "All elements must feel part of the same scene",
+    "Avoid flat UI overlays or solid black boxes",
+    "Match lighting, color grading, glow, and depth to the background",
+    "Use translucent or scene-inspired containers if needed",
+    "Preserve negative space and cinematic balance"
+  ]
+}

@@ -7,13 +7,14 @@ class PromptTemplates:
     """Centralized storage for all AI generation prompts"""
     
     # Template Background Generation Prompts
+    # NOTE: This is ONLY for OVERLAY MODE (template_prompts.py handles AI-NATIVE mode)
     TEMPLATE_BACKGROUND_BASE = """
-    Create a clean, professional advertisement background design.
+    Create a clean, professional advertisement background design for OVERLAY MODE.
     Style: {style}
     Color scheme: {color_scheme}
     Theme inspiration: {theme_keywords}
     
-    CRITICAL DESIGN REQUIREMENTS:
+    OVERLAY MODE REQUIREMENTS:
     - Dimensions: {width}x{height} pixels
     - Create BACKGROUND ONLY - absolutely no text, logos, or readable content
     - Use {color_scheme} color palette with {style} aesthetic
@@ -21,12 +22,11 @@ class PromptTemplates:
     - Create depth with gradients, lighting effects, and abstract shapes
     - Design must support text overlay without visual conflicts
     
-    ABSOLUTE RESTRICTIONS (CRITICAL):
+    OVERLAY MODE RESTRICTIONS:
     - NO text, letters, words, numbers, or symbols of any kind
     - NO company names, logos, or brand elements
     - NO prices, percentages, sale announcements, or promotional text
     - NO readable content whatsoever
-    - NO Christmas trees, Santa, or specific holiday imagery
     - Create ABSTRACT background that suggests the theme through color and mood only
     
     TEMPLATE OVERLAY ZONES (keep completely clear):
@@ -36,7 +36,9 @@ class PromptTemplates:
     - Call-to-action area: button placement zone
     
     Create an atmospheric, text-free background that complements {theme_keywords} through visual mood and {color_scheme} colors only.
-    The template system will add all text, logos, and promotional content.
+    The template system will add all text, logos, and promotional content as overlays.
+    
+    NOTE: This prompt is for OVERLAY mode only. AI-native cinematic templates use a different prompting system (template_prompts.py).
     """
     
     # Enhanced Prompt Building for Non-Template Generation

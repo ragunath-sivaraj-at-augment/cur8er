@@ -1,0 +1,82 @@
+{
+  "name": "tt04",
+  "dimensions": [1920, 1080],
+  "positioning_mode": "semantic",
+
+  "elements": [
+    {
+      "type": "logo",
+      "id": "logo_1",
+      "placement_hint": "upper architectural area with clean negative space",
+      "priority": "low",
+      "integration": "logo will be added post-generation; reserve subtle space only",
+      "size": {
+        "width": 300,
+        "height": 150
+      },
+      "content": "{{logo}}"
+    },
+
+    {
+      "type": "text",
+      "id": "company_name",
+      "placement_hint": "architectural branding surface near the upper area of the scene",
+      "priority": "high",
+      "integration": "engraved, mounted, or illuminated branding element",
+      "content": "{{client_name}}",
+      "style": {
+        "style_hint": "premium brand signage, subtle illumination, physically embedded"
+      }
+    },
+
+    {
+      "type": "text",
+      "id": "tagline",
+      "placement_hint": "secondary nearby surface, visually subordinate to the brand name",
+      "priority": "low",
+      "integration": "small supporting text on a wall or panel",
+      "content": "{{client_tagline}}",
+      "style": {
+        "style_hint": "minimal, elegant, unobtrusive"
+      }
+    },
+
+    {
+      "type": "text",
+      "id": "main_message",
+      "placement_hint": "dominant architectural surface clearly visible from the main viewpoint",
+      "priority": "highest",
+      "integration": "large-scale physical signage or illuminated wall feature",
+      "content": "{{main_message}}",
+      "style": {
+        "style_hint": "large cinematic typography, dominant, scene-integrated"
+      }
+    },
+
+    {
+      "type": "text",
+      "id": "cta_text",
+      "placement_hint": "small nearby signage element, not separated from the scene",
+      "priority": "medium",
+      "integration": "environmental call-to-action text, not a button",
+      "content": "{{cta_text}}",
+      "style": {
+        "style_hint": "short, clear, understated"
+      }
+    }
+  ],
+
+  "background_style": {
+    "style": "modern",
+    "color_scheme": "brand"
+  },
+
+  "design_rules": [
+    "Generate a single continuous real-world scene",
+    "No panels, no split views, no segmented layouts",
+    "No UI elements, labels, badges, or black rounded rectangles",
+    "All text must exist on real physical surfaces",
+    "One dominant message, others must support it",
+    "Cinematic lighting, realistic materials, premium brand feel"
+  ]
+}

@@ -19,8 +19,11 @@ class ImageProcessor:
     def process_logo(uploaded_file) -> Optional[Image.Image]:
         """Minimal logo processing for template system"""
         try:
-            # Validate and read the uploaded file properly
-            if hasattr(uploaded_file, 'seek') and hasattr(uploaded_file, 'read'):
+            # Handle PIL Image objects directly (after MediaFileStorageError fix)
+            if isinstance(uploaded_file, Image.Image):
+                logo = uploaded_file
+            # Handle file upload objects (legacy support)
+            elif hasattr(uploaded_file, 'seek') and hasattr(uploaded_file, 'read'):
                 uploaded_file.seek(0)  # Reset file pointer
                 logo = Image.open(uploaded_file)
             else:

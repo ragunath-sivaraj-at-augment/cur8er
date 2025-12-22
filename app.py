@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import io
+import time
 from PIL import Image
 from datetime import datetime
 import json
@@ -98,8 +99,16 @@ if 'is_generating' not in st.session_state:
     st.session_state.is_generating = False
 if 'use_template_system' not in st.session_state:
     st.session_state.use_template_system = False
+if 'show_visual_layout' not in st.session_state:
+    st.session_state.show_visual_layout = False
 
 def main():
+    # Visual Layout Generator Interface (Full Width) - Check before main UI
+    if st.session_state.get('show_visual_layout', False):
+        from utils.visual_layout_interface import show_visual_layout_generator
+        show_visual_layout_generator()
+        st.stop()
+    
     # Template Editor Interface (Full Width) - Check first before showing main header
     if st.session_state.get('show_template_editor', False):
         # Simple header for template editor only
@@ -377,18 +386,43 @@ def main():
                 dimensions = (1080, 1080)
         
         # Logo upload
-        uploaded_logo = st.file_uploader(
+        uploaded_logo_file = st.file_uploader(
             "Upload Company Logo",
             type=["png", "jpg", "jpeg", "svg"]
         )
         
+        # Convert uploaded logo to PIL Image immediately to prevent MediaFileStorageError
+        uploaded_logo = None
+        if uploaded_logo_file is not None:
+            try:
+                uploaded_logo = Image.open(uploaded_logo_file)
+                # Keep in RGB mode for consistency
+                if uploaded_logo.mode == 'RGBA':
+                    uploaded_logo = uploaded_logo.convert('RGB')
+            except Exception as e:
+                st.error(f"Error loading logo: {e}")
+                uploaded_logo = None
+        
         # Reference images for AI generation
-        reference_images = st.file_uploader(
+        reference_images_files = st.file_uploader(
             "🖼️ Reference Images (Style Guide)",
             type=["png", "jpg", "jpeg"],
             accept_multiple_files=True,
             help="Upload reference images to guide the AI's style and composition (up to 14 images)"
         )
+        
+        # Convert uploaded reference images to PIL Images immediately
+        reference_images = []
+        if reference_images_files:
+            for ref_file in reference_images_files:
+                try:
+                    ref_img = Image.open(ref_file)
+                    # Keep in RGB mode for consistency
+                    if ref_img.mode == 'RGBA':
+                        ref_img = ref_img.convert('RGB')
+                    reference_images.append(ref_img)
+                except Exception as e:
+                    st.warning(f"Could not load reference image: {e}")
         
         # Show reference image preview and status
         if reference_images:
@@ -397,16 +431,8 @@ def main():
                 preview_cols = st.columns(min(4, len(reference_images)))
                 for i, ref_img in enumerate(reference_images[:4]):
                     with preview_cols[i % 4]:
-                        try:
-                            # Handle PIL Image directly
-                            if isinstance(ref_img, Image.Image):
-                                st.image(ref_img, caption=f"Ref {i+1}", width=80)
-                            else:
-                                img = Image.open(ref_img)
-                                st.image(img, caption=f"Ref {i+1}", width=80)
-                        except:
-                            img_name = ref_img.name if hasattr(ref_img, 'name') else f"Image {i+1}"
-                            st.text(f"Ref {i+1}: {img_name}")
+                        # All reference images are now PIL Image objects
+                        st.image(ref_img, caption=f"Ref {i+1}", width=80)
                 if len(reference_images) > 4:
                     st.info(f"... and {len(reference_images) - 4} more reference images")
         
@@ -807,6 +833,17 @@ def main():
         
         st.divider()
         
+        # NEW: Visual Layout Generator Entry Point
+        st.subheader("🎨 Alternative Methods")
+        
+        if st.button("🖼️ Visual Layout Generator", use_container_width=True, help="Create ads by designing layout visually"):
+            st.session_state.show_visual_layout = True
+            st.rerun()
+        
+        st.caption("Use drag-and-drop layout builder for precise positioning")
+        
+        st.divider()
+        
         # Action buttons (only show if ad is generated)
         if st.session_state.generated_ad is not None:
             st.subheader("🔄 Quick Actions")
@@ -1092,14 +1129,93 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                 if template_id:
                     status_placeholder.info("🎨 Using template-based generation...")
                     
-                    # Create background prompt for template
+                    # Get template to check mode
+                    template_data = template_manager.get_template(template_id)
+                    
+                    # Create background prompt for template with actual data for AI-native mode
                     background_prompt = template_manager.create_template_background(
-                        template_id, style, color_scheme, prompt
+                        template_id, style, color_scheme, prompt,
+                        template_data=template_data,
+                        data={
+                            "client_name": client_name,
+                            "client_tagline": client_tagline,
+                            "main_message": main_message,
+                            "cta_text": cta_text,
+                            "client_website": client_website
+                        }
                     )
                     
                     # Show the background prompt for debugging
                     with st.expander("🔍 Template Background Prompt (Debug)"):
                         st.text(background_prompt)
+                    
+                    # === GENERATION DETAILS: Full API Call Analysis ===
+                    # Extract complete prompt construction details
+                    is_ai_native = bool(template_data.get("design_rules"))
+                    
+                    generation_details = {
+                        "=== METADATA ===": {
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "session_id": id(st.session_state),
+                            "generation_type": "TEMPLATE_BASED"
+                        },
+                        "=== TEMPLATE CONFIGURATION ===": {
+                            "template_mode": "AI-NATIVE (cinematic, text rendered by AI)" if is_ai_native else "OVERLAY (background + PIL text)",
+                            "template_id": template_id,
+                            "template_name": template_data.get("name", "Unknown"),
+                            "positioning_mode": template_data.get("positioning_mode", "zone"),
+                            "template_description": template_data.get("description", "No description"),
+                            "background_style": template_data.get("background_style", {}),
+                        },
+                        "=== MODEL & GENERATION PARAMS ===": {
+                            "model_selected": model,
+                            "dimensions": {"width": dimensions[0], "height": dimensions[1]},
+                            "style": style,
+                            "color_scheme": color_scheme,
+                            "medium": medium if 'medium' in locals() else "Not specified",
+                            "include_text": include_text if 'include_text' in locals() else True,
+                            "include_cta": include_cta if 'include_cta' in locals() else False
+                        },
+                        "=== USER INPUT DATA ===": {
+                            "user_content_prompt": prompt,
+                            "client_name": client_name,
+                            "client_tagline": client_tagline,
+                            "main_message": main_message,
+                            "cta_text": cta_text,
+                            "client_website": client_website
+                        },
+                        "=== TEMPLATE STRUCTURE ===": {
+                            "elements_count": len(template_data.get("elements", [])),
+                            "elements_detail": template_data.get("elements", []),
+                            "custom_elements": template_data.get("custom_elements", []),
+                            "design_rules": template_data.get("design_rules", []),
+                            "design_rules_count": len(template_data.get("design_rules", []))
+                        },
+                        "=== PROMPT CONSTRUCTION ===": {
+                            "prompt_mode": "AI-NATIVE (get_ai_native_prompt)" if is_ai_native else "OVERLAY (get_overlay_mode_prompt)",
+                            "prompt_source_function": "utils.template_prompts.get_ai_native_prompt" if is_ai_native else "utils.template_prompts.get_overlay_mode_prompt",
+                            "system_instructions": "Google Gemini best practices: narrative structure, photography language, material specifications, step-by-step composition" if is_ai_native else "Background generation for PIL overlay",
+                            "full_prompt_sent_to_api": background_prompt,
+                            "prompt_length_chars": len(background_prompt),
+                            "prompt_word_count": len(background_prompt.split()),
+                            "prompt_line_count": len(background_prompt.split('\n'))
+                        },
+                        "=== ASSETS & REFERENCES ===": {
+                            "has_logo": bool(logo),
+                            "logo_filename": logo.name if logo else None,
+                            "has_reference_images": bool(reference_images),
+                            "reference_image_count": len(reference_images) if reference_images else 0,
+                            "reference_image_names": [ref.name for ref in reference_images] if reference_images and hasattr(reference_images[0], 'name') else []
+                        },
+                        "=== RAW TEMPLATE JSON ===": template_data
+                    }
+                    
+                    with st.expander("📊 Complete Generation Details (RAW JSON DATA)", expanded=False):
+                        st.markdown("### 🗂️ All Data Sent to API")
+                        st.json(generation_details, expanded=True)
+                        st.markdown("---")
+                        st.markdown("### 📝 Full Prompt Text (Copy-Paste Ready)")
+                        st.text_area("Complete prompt sent to model API:", background_prompt, height=400, key="template_prompt_full")
                     
                     # Generate background using AI with advanced features if Nano Banana Pro
                     status_placeholder.info(f"🎨 Generating background with {model}...")
@@ -1223,6 +1339,79 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                     
                     with st.expander("🔍 Enhanced Prompt (Debug)"):
                         st.text(enhanced_prompt)
+                    
+                    # === GENERATION DETAILS: Full API Call Analysis (Non-Template) ===
+                    non_template_generation_details = {
+                        "=== METADATA ===": {
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "session_id": id(st.session_state),
+                            "generation_type": "NON_TEMPLATE (Direct prompt-based)"
+                        },
+                        "=== MODEL & GENERATION PARAMS ===": {
+                            "model_selected": model,
+                            "dimensions": {"width": dimensions[0], "height": dimensions[1]},
+                            "medium": medium,
+                            "style": style,
+                            "color_scheme": color_scheme,
+                            "include_text": include_text,
+                            "include_cta": include_cta
+                        },
+                        "=== USER INPUT DATA ===": {
+                            "user_base_prompt": prompt,
+                            "client_name": client_name,
+                            "client_tagline": client_tagline,
+                            "client_website": client_website,
+                            "logo_description": logo_description
+                        },
+                        "=== PROMPT CONSTRUCTION ===": {
+                            "prompt_builder": "utils.prompts.PromptBuilder.build_enhanced_prompt",
+                            "base_template": "PromptTemplates.ENHANCED_PROMPT_BASE",
+                            "enhancements_applied": [
+                                "COMPANY_NAME_REQUIREMENTS (4 rules)",
+                                "MEDIUM_ENHANCEMENTS (specific to " + medium + ")",
+                                "STYLE_GUIDANCE",
+                                "COLOR_SCHEME_GUIDANCE",
+                                "FORMAT_GUIDANCE (aspect ratio)",
+                                "TYPOGRAPHY_GUIDANCE",
+                                "CTA_GUIDANCE" if include_cta else "No CTA",
+                                "QUALITY_GUIDELINES (base + medium-specific)"
+                            ],
+                            "system_instructions": "Non-template mode: Comprehensive prompt with company name emphasis, medium optimization, and quality guidelines",
+                            "full_prompt_sent_to_api": enhanced_prompt,
+                            "prompt_length_chars": len(enhanced_prompt),
+                            "prompt_word_count": len(enhanced_prompt.split()),
+                            "original_prompt_length": len(prompt),
+                            "enhancement_ratio": f"{len(enhanced_prompt) / len(prompt):.2f}x" if prompt else "N/A"
+                        },
+                        "=== PROMPT COMPONENTS BREAKDOWN ===": {
+                            "1_base_prompt": f"ENHANCED_PROMPT_BASE with client_name: {client_name}",
+                            "2_company_name_requirements": "4 critical rules emphasizing client name prominence",
+                            "3_tagline": client_tagline if client_tagline else "None",
+                            "4_medium_enhancement": f"Medium-specific optimization for {medium}",
+                            "5_style_guidance": style,
+                            "6_color_scheme": color_scheme,
+                            "7_format_guidance": f"{'Square' if dimensions[0]==dimensions[1] else 'Landscape' if dimensions[0]>dimensions[1] else 'Portrait'}",
+                            "8_logo_integration": logo_description if logo_description else "No logo",
+                            "9_typography_guidance": "Billboard" if "billboard" in medium.lower() else "Default",
+                            "10_cta_guidance": f"With website: {client_website}" if include_cta and client_website else "Without CTA" if not include_cta else "With generic CTA",
+                            "11_main_message": f"Secondary to company name: {prompt}",
+                            "12_quality_guidelines": "Base + medium-specific quality requirements"
+                        },
+                        "=== ASSETS & REFERENCES ===": {
+                            "has_logo": bool(logo),
+                            "logo_filename": logo.name if logo else None,
+                            "has_reference_images": bool(reference_images),
+                            "reference_image_count": len(reference_images) if reference_images else 0,
+                            "reference_image_names": [ref.name for ref in reference_images] if reference_images and hasattr(reference_images[0], 'name') else []
+                        }
+                    }
+                    
+                    with st.expander("📊 Complete Generation Details (RAW JSON DATA)", expanded=False):
+                        st.markdown("### 🗂️ All Data Sent to API")
+                        st.json(non_template_generation_details, expanded=True)
+                        st.markdown("---")
+                        st.markdown("### 📝 Full Prompt Text (Copy-Paste Ready)")
+                        st.text_area("Complete prompt sent to model API:", enhanced_prompt, height=400, key="non_template_prompt_full")
                     
                     status_placeholder.info(f"🎨 Generating image with {model}...")
                     
@@ -1357,36 +1546,69 @@ def generate_ad(prompt, client_name, client_website, client_tagline, dimensions,
                         st.warning(f"⚠️ Could not save image: {str(save_error)}")
                     
                     st.session_state.generated_ad = generated_image
+                    
+                    # Store comprehensive generation parameters with all details
                     st.session_state.generation_params = {
-                        "prompt": prompt,
-                        "original_prompt": prompt,
-                        "client_name": client_name,
-                        "client_website": client_website,
-                        "client_tagline": client_tagline,
-                        "dimensions": dimensions,
-                        "medium": medium,
-                        "model": model,
-                        "actual_model_used": model,
-                        "template_used": template_id,
-                        "template_name": template_manager.get_template(template_id)["name"] if template_id and template_manager.get_template(template_id) else None,
-                        "style": style,
-                        "color_scheme": color_scheme,
-                        "include_text": include_text,
-                        "include_cta": include_cta,
-                        "logo_uploaded": logo is not None,
-                        "logo_filename": logo.name if logo and hasattr(logo, 'name') else "uploaded_logo.png",
-                        "reference_images_count": len(reference_images) if reference_images else 0,
-                        "reference_images_names": [
-                            img.name if hasattr(img, 'name') else f"reference_image_{i+1}.png" 
-                            for i, img in enumerate(reference_images)
-                        ] if reference_images else [],
-                        "nano_banana_features": {
-                            "search_grounding": "Nano Banana Pro" in model,
-                            "text_rendering": "Nano Banana Pro" in model,
-                            "reference_images_used": len(reference_images) if reference_images and "Nano Banana Pro" in model else 0
-                        } if "Nano Banana" in model else None,
-                        "timestamp": datetime.now().isoformat(),
-                        "generation_type": "template_based" if template_id else "prompt_based"
+                        "=== METADATA ===": {
+                            "timestamp": datetime.now().isoformat(),
+                            "session_id": id(st.session_state),
+                            "generation_type": "TEMPLATE_BASED" if template_id else "NON_TEMPLATE",
+                            "ads_generated_count": st.session_state.get('ads_generated', 0) + 1
+                        },
+                        "=== MODEL & GENERATION ===": {
+                            "model_selected": model,
+                            "actual_model_used": model,
+                            "dimensions": {"width": dimensions[0], "height": dimensions[1]},
+                            "medium": medium,
+                            "style": style,
+                            "color_scheme": color_scheme,
+                            "include_text": include_text,
+                            "include_cta": include_cta
+                        },
+                        "=== USER INPUT ===": {
+                            "prompt": prompt,
+                            "original_prompt": prompt,
+                            "client_name": client_name,
+                            "client_website": client_website,
+                            "client_tagline": client_tagline,
+                            "main_message": main_message if 'main_message' in locals() else "",
+                            "cta_text": cta_text if 'cta_text' in locals() else ""
+                        },
+                        "=== TEMPLATE INFO ===": {
+                            "template_used": template_id if template_id else None,
+                            "template_name": template_manager.get_template(template_id)["name"] if template_id and template_manager.get_template(template_id) else None,
+                            "template_mode": "AI-NATIVE" if template_id and template_manager.get_template(template_id) and template_manager.get_template(template_id).get("design_rules") else "OVERLAY" if template_id else "NO_TEMPLATE",
+                            "positioning_mode": template_manager.get_template(template_id).get("positioning_mode") if template_id and template_manager.get_template(template_id) else None,
+                            "template_json": template_manager.get_template(template_id) if template_id and template_manager.get_template(template_id) else None
+                        },
+                        "=== ASSETS & REFERENCES ===": {
+                            "logo_uploaded": logo is not None,
+                            "logo_filename": logo.name if logo and hasattr(logo, 'name') else None,
+                            "reference_images_count": len(reference_images) if reference_images else 0,
+                            "reference_images_names": [
+                                img.name if hasattr(img, 'name') else f"reference_image_{i+1}.png" 
+                                for i, img in enumerate(reference_images)
+                            ] if reference_images else []
+                        },
+                        "=== ADVANCED FEATURES ===": {
+                            "nano_banana_features": {
+                                "enabled": "Nano Banana" in model,
+                                "search_grounding": "Nano Banana Pro" in model,
+                                "text_rendering": "Nano Banana Pro" in model,
+                                "reference_images_used": len(reference_images) if reference_images and "Nano Banana Pro" in model else 0
+                            } if "Nano Banana" in model else None
+                        },
+                        "=== PROMPT DETAILS ===": {
+                            "prompt_stored": "See generation_details for full prompt",
+                            "note": "Full prompt text was displayed during generation in 'Complete Generation Details' expander"
+                        },
+                        "=== LEGACY FIELDS (for compatibility) ===": {
+                            "prompt": prompt,
+                            "client_name": client_name,
+                            "model": model,
+                            "dimensions": dimensions,
+                            "template_used": template_id
+                        }
                     }
                     st.session_state.ads_generated = st.session_state.get('ads_generated', 0) + 1
                     

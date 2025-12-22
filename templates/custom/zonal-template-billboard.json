@@ -1,0 +1,81 @@
+{
+  "name": "zonal-template-billboard",
+  "dimensions": [1920, 1080],
+
+  "design_rules": [
+    "All elements must feel part of the same scene",
+    "Avoid flat UI overlays or solid black boxes",
+    "Match lighting, color grading, glow, and depth to the background",
+    "Use translucent or scene-inspired containers if needed",
+    "Preserve negative space and cinematic balance"
+  ],
+
+  "elements": [
+    {
+      "type": "logo",
+      "id": "logo_1",
+      "position": {
+        "zone": "top-left",
+        "priority": "low",
+        "integration": "subtle, blended into environment"
+      },
+      "content": "{{logo}}"
+    },
+
+    {
+      "type": "text",
+      "id": "title_1",
+      "position": {
+        "zone": "top-center",
+        "priority": "high",
+        "integration": "naturally embedded, cinematic"
+      },
+      "content": "{{client_name}}",
+      "style_hint": "bold headline, glowing or softly lit, scene-matching color"
+    },
+
+    {
+      "type": "text",
+      "id": "main_message_1",
+      "position": {
+        "zone": "center-left",
+        "priority": "highest",
+        "integration": "part of the scene, readable but not flat"
+      },
+      "content": "{{main_message}}",
+      "style_hint": "clear, large, modern typography with subtle glow"
+    },
+
+    {
+      "type": "cta",
+      "id": "cta_button_1",
+      "position": {
+        "zone": "bottom-center",
+        "priority": "medium",
+        "integration": "designed element, not UI button"
+      },
+      "content": "{{cta_text}}",
+      "style_hint": "futuristic call-to-action panel, rounded, glowing edges"
+    },
+
+    {
+      "type": "text",
+      "id": "tagline",
+      "position": {
+        "zone": "top-right",
+        "priority": "low",
+        "integration": "subtle, secondary text"
+      },
+      "content": "{{client_tagline}}",
+      "style_hint": "small, light, unobtrusive"
+    }
+  ],
+
+  "background_style": {
+    "theme": "modern",
+    "mood": "cinematic",
+    "color_scheme": "brand-adaptive"
+  },
+
+  "positioning_mode": "zone"
+}

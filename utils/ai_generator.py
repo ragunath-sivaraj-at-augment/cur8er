@@ -302,21 +302,46 @@ class AIImageGenerator:
             
             st.info("🔄 Sending request to OpenAI...")
             
+            # === CAPTURE ALL API PARAMETERS ===
             if self.model_name == "DALL-E 3":
-                response = self.client.images.generate(
-                    model="dall-e-3",
-                    prompt=prompt,
-                    size=dalle_size,
-                    quality="hd",
-                    n=1,
-                )
+                api_params = {
+                    "model": "dall-e-3",
+                    "prompt": prompt,
+                    "size": dalle_size,
+                    "quality": "hd",
+                    "n": 1,
+                }
+                
+                with st.expander("📡 DALL-E 3 API Call Details", expanded=False):
+                    st.json({
+                        "api_endpoint": "OpenAI Images API",
+                        "method": "images.generate",
+                        "parameters": api_params,
+                        "prompt_length": len(prompt),
+                        "prompt_word_count": len(prompt.split())
+                    })
+                    st.text_area("Full Prompt:", prompt, height=300)
+                
+                response = self.client.images.generate(**api_params)
             else:  # DALL-E 2
-                response = self.client.images.generate(
-                    model="dall-e-2",
-                    prompt=prompt,
-                    size=dalle_size,
-                    n=1,
-                )
+                api_params = {
+                    "model": "dall-e-2",
+                    "prompt": prompt,
+                    "size": dalle_size,
+                    "n": 1,
+                }
+                
+                with st.expander("📡 DALL-E 2 API Call Details", expanded=False):
+                    st.json({
+                        "api_endpoint": "OpenAI Images API",
+                        "method": "images.generate",
+                        "parameters": api_params,
+                        "prompt_length": len(prompt),
+                        "prompt_word_count": len(prompt.split())
+                    })
+                    st.text_area("Full Prompt:", prompt, height=300)
+                
+                response = self.client.images.generate(**api_params)
             
             st.success("✅ Received response from OpenAI")
             image_url = response.data[0].url
@@ -674,6 +699,29 @@ class AIImageGenerator:
                     
                     # Create a more detailed prompt for image generation
                     enhanced_prompt = f"Generate a high-quality advertisement image: {prompt}. Style: professional, modern, eye-catching design suitable for advertising."
+                    
+                    # === CAPTURE ALL API PARAMETERS ===
+                    api_call_details = {
+                        "api_provider": "Google Generative AI",
+                        "model_name": final_model_name,
+                        "method": "generate_content",
+                        "generation_config": "default (no custom config for basic generation)",
+                        "input_type": "text_prompt_only",
+                        "prompt": enhanced_prompt,
+                        "prompt_length": len(enhanced_prompt),
+                        "prompt_word_count": len(enhanced_prompt.split()),
+                        "original_prompt": prompt,
+                        "original_prompt_length": len(prompt),
+                        "enhancement_applied": True,
+                        "target_size": {"width": size[0], "height": size[1]}
+                    }
+                    
+                    with st.expander("📡 Google Gemini API Call Details", expanded=False):
+                        st.json(api_call_details)
+                        st.markdown("### Original Prompt")
+                        st.text_area("User's prompt:", prompt, height=150, key="orig_prompt_nano")
+                        st.markdown("### Enhanced Prompt (sent to API)")
+                        st.text_area("Full prompt with enhancements:", enhanced_prompt, height=300, key="enh_prompt_nano")
                     
                     st.info(f"🔄 Generating image with prompt: {enhanced_prompt[:100]}...")
                     
@@ -1204,6 +1252,42 @@ class NanoBananaProFeatures:
                 candidate_count=1,
                 temperature=0.7,
             )
+            
+            # === CAPTURE ALL API PARAMETERS FOR NANO BANANA PRO ===
+            api_call_details = {
+                "api_provider": "Google Generative AI (Nano Banana Pro)",
+                "model_name": model_name,
+                "method": "generate_content",
+                "generation_config": {
+                    "candidate_count": 1,
+                    "temperature": 0.7
+                },
+                "input_components": {
+                    "text_prompt": enhanced_prompt,
+                    "reference_images_count": successful_references,
+                    "total_inputs": len(generation_input)
+                },
+                "advanced_features": {
+                    "search_grounding": use_search_grounding,
+                    "text_rendering_mode": text_rendering_mode
+                },
+                "prompt_details": {
+                    "base_prompt": prompt,
+                    "enhanced_prompt": enhanced_prompt,
+                    "prompt_length": len(enhanced_prompt),
+                    "prompt_word_count": len(enhanced_prompt.split())
+                },
+                "target_size": {"width": size[0], "height": size[1]}
+            }
+            
+            with st.expander("📡 Nano Banana Pro API Call Details", expanded=False):
+                st.json(api_call_details)
+                st.markdown("### Base Prompt (from app)")
+                st.text_area("Original prompt:", prompt, height=200, key="nbp_base")
+                st.markdown("### Enhanced Prompt (with Pro features)")
+                st.text_area("Full prompt sent to API:", enhanced_prompt, height=400, key="nbp_enhanced")
+                if reference_images:
+                    st.markdown(f"### Reference Images: {successful_references} successfully processed")
             
             with st.status("🎨 Generating with Nano Banana Pro...", expanded=True) as status:
                 st.write("🔍 Enhanced prompt prepared")

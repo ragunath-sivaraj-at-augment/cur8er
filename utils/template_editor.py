@@ -16,14 +16,23 @@ class TemplateElement:
     """Represents a single element in a template"""
     type: str  # 'logo', 'text', 'button', 'shape'
     id: str
-    position: Dict[str, int]  # {'x': 50, 'y': 100}
-    size: Dict[str, int]     # {'width': 200, 'height': 100}
     content: str = ""        # Text content or placeholder
-    style: Dict = None       # Font, color, etc.
+    style: Dict = None       # Font, color, style_hint, etc.
+    size: Dict = None        # {'width': 200, 'height': 100}
+    
+    # NEW STRUCTURE (for AI-native semantic positioning)
+    placement_hint: str = None  # "architectural surface", "upper area", etc.
+    priority: str = None        # "highest", "high", "medium", "low"
+    integration: str = None     # "engraved", "illuminated", etc.
+    
+    # OLD STRUCTURE (for overlay/pixel positioning - backward compatibility)
+    position: Dict = None       # {'x': 50, 'y': 100} or {'zone': 'top-left'}
     
     def __post_init__(self):
         if self.style is None:
             self.style = {}
+        if self.size is None:
+            self.size = {"width": 200, "height": 100}
 
 @dataclass
 class TemplateLayout:
@@ -32,10 +41,16 @@ class TemplateLayout:
     dimensions: List[int]
     elements: List[TemplateElement]
     background_style: Dict = None
+    positioning_mode: str = "pixel"  # 'pixel', 'zone', or 'semantic'
+    design_rules: List[str] = None  # For AI-native mode
     
     def __post_init__(self):
         if self.background_style is None:
             self.background_style = {}
+        if self.positioning_mode not in ["pixel", "zone", "semantic"]:
+            self.positioning_mode = "pixel"
+        if self.design_rules is None:
+            self.design_rules = []
 
 class EditableTemplateManager:
     """Manager for editable custom templates"""
@@ -45,61 +60,180 @@ class EditableTemplateManager:
         os.makedirs(self.custom_templates_dir, exist_ok=True)
         self.current_template = None
         
-    def get_default_elements(self, dimensions):
-        """Get default template elements for given dimensions"""
+    def get_default_elements(self, dimensions, positioning_mode="pixel", is_ai_native=False):
+        """Get default template elements for given dimensions and positioning mode"""
         width, height = dimensions
         
-        return [
-            TemplateElement(
-                type="logo",
-                id="logo_1",
-                position={"x": 50, "y": 50},
-                size={"width": min(300, width//6), "height": min(150, height//7)},
-                content="{{logo}}",
-                style={"opacity": 1.0}
-            ),
-            TemplateElement(
-                type="text",
-                id="title_1", 
-                position={"x": width//4, "y": 50},
-                size={"width": width//2, "height": height//8},
-                content="{{client_name}}",
-                style={"font_family": "Arial", "font_size": 60, "color": "#FFFFFF", "weight": "bold"}
-            ),
-            TemplateElement(
-                type="text",
-                id="tagline_1",
-                position={"x": width//4, "y": height//5},
-                size={"width": width//2, "height": height//15},
-                content="{{client_tagline}}",
-                style={"font_family": "Arial", "font_size": 30, "color": "#CCCCCC"}
-            ),
-            TemplateElement(
-                type="text",
-                id="main_message_1",
-                position={"x": 50, "y": height//2},
-                size={"width": int(width*0.8), "height": height//4},
-                content="{{main_message}}",
-                style={"font_family": "Arial", "font_size": 48, "color": "#FFFFFF", "weight": "normal"}
-            ),
-            TemplateElement(
-                type="button",
-                id="cta_button_1",
-                position={"x": width-350, "y": height-150},
-                size={"width": 300, "height": 100},
-                content="{{cta_text}}",
-                style={"bg_color": "#FF6600", "text_color": "#FFFFFF", "font_size": 32, "border_radius": 10}
-            )
-        ]
+        if positioning_mode == "zone" or positioning_mode == "semantic":
+            # Zone-based or semantic positioning
+            if is_ai_native:
+                # AI-Native mode: NEW SIMPLIFIED STRUCTURE (placement_hint at element level)
+                elements = [
+                    TemplateElement(
+                        type="logo",
+                        id="logo_1",
+                        placement_hint="upper architectural area with clean negative space",
+                        priority="low",
+                        integration="logo will be added post-generation; reserve subtle space only",
+                        size={"width": min(300, width//6), "height": min(150, height//7)},
+                        content="{{logo}}",
+                        style={}
+                    ),
+                    TemplateElement(
+                        type="text",
+                        id="company_name", 
+                        placement_hint="architectural branding surface near the upper area of the scene",
+                        priority="high",
+                        integration="engraved, mounted, or illuminated branding element",
+                        size={"width": width//2, "height": height//8},
+                        content="{{client_name}}",
+                        style={"style_hint": "premium brand signage, subtle illumination, physically embedded"}
+                    ),
+                    TemplateElement(
+                        type="text",
+                        id="tagline_1",
+                        placement_hint="secondary nearby surface, visually subordinate to the brand name",
+                        priority="low",
+                        integration="small supporting text on a wall or panel",
+                        size={"width": width//3, "height": height//15},
+                        content="{{client_tagline}}",
+                        style={"style_hint": "minimal, elegant, unobtrusive"}
+                    ),
+                    TemplateElement(
+                        type="text",
+                        id="main_message_1",
+                        placement_hint="dominant architectural surface clearly visible from the main viewpoint",
+                        priority="highest",
+                        integration="large-scale physical signage or illuminated wall feature",
+                        size={"width": int(width*0.8), "height": height//4},
+                        content="{{main_message}}",
+                        style={"style_hint": "large cinematic typography, dominant, scene-integrated"}
+                    ),
+                    TemplateElement(
+                        type="text",
+                        id="cta_text_1",
+                        placement_hint="small nearby signage element, not separated from the scene",
+                        priority="medium",
+                        integration="environmental call-to-action text, not a button",
+                        size={"width": 300, "height": 100},
+                        content="{{cta_text}}",
+                        style={"style_hint": "short, clear, understated"}
+                    )
+                ]
+            else:
+                # Overlay mode: use traditional font specs with position dict
+                elements = [
+                    TemplateElement(
+                        type="logo",
+                        id="logo_1",
+                        position={"zone": "top-left", "priority": "low", "integration": "subtle, blended into environment"},
+                        size={"width": min(300, width//6), "height": min(150, height//7)},
+                        content="{{logo}}",
+                        style={"opacity": 1.0}
+                    ),
+                    TemplateElement(
+                        type="text",
+                        id="title_1", 
+                        position={"zone": "top-center", "priority": "high", "integration": "naturally embedded, cinematic"},
+                        size={"width": width//2, "height": height//8},
+                        content="{{client_name}}",
+                        style={"font_family": "Arial", "font_size": 60, "color": "#FFFFFF", "weight": "bold"}
+                    ),
+                    TemplateElement(
+                        type="text",
+                        id="tagline_1",
+                        position={"zone": "top-right", "priority": "low", "integration": "subtle, secondary text"},
+                        size={"width": width//3, "height": height//15},
+                        content="{{client_tagline}}",
+                        style={"font_family": "Arial", "font_size": 30, "color": "#CCCCCC"}
+                    ),
+                    TemplateElement(
+                        type="text",
+                        id="main_message_1",
+                        position={"zone": "center-left", "priority": "highest", "integration": "part of the scene, readable but not flat"},
+                        size={"width": int(width*0.8), "height": height//4},
+                        content="{{main_message}}",
+                        style={"font_family": "Arial", "font_size": 48, "color": "#FFFFFF", "weight": "normal"}
+                    ),
+                    TemplateElement(
+                        type="button",
+                        id="cta_button_1",
+                        position={"zone": "bottom-center", "priority": "medium", "integration": "naturally integrated"},
+                        size={"width": 300, "height": 100},
+                        content="{{cta_text}}",
+                        style={"bg_color": "#FF6600", "text_color": "#FFFFFF", "font_size": 32, "border_radius": 10}
+                    )
+                ]
+            
+            return elements
+        else:
+            # Pixel-based default positions
+            return [
+                TemplateElement(
+                    type="logo",
+                    id="logo_1",
+                    position={"x": 50, "y": 50},
+                    size={"width": min(300, width//6), "height": min(150, height//7)},
+                    content="{{logo}}",
+                    style={"opacity": 1.0}
+                ),
+                TemplateElement(
+                    type="text",
+                    id="title_1", 
+                    position={"x": width//4, "y": 50},
+                    size={"width": width//2, "height": height//8},
+                    content="{{client_name}}",
+                    style={"font_family": "Arial", "font_size": 60, "color": "#FFFFFF", "weight": "bold"}
+                ),
+                TemplateElement(
+                    type="text",
+                    id="tagline_1",
+                    position={"x": width//4, "y": height//5},
+                    size={"width": width//2, "height": height//15},
+                    content="{{client_tagline}}",
+                    style={"font_family": "Arial", "font_size": 30, "color": "#CCCCCC"}
+                ),
+                TemplateElement(
+                    type="text",
+                    id="main_message_1",
+                    position={"x": 50, "y": height//2},
+                    size={"width": int(width*0.8), "height": height//4},
+                    content="{{main_message}}",
+                    style={"font_family": "Arial", "font_size": 48, "color": "#FFFFFF", "weight": "normal"}
+                ),
+                TemplateElement(
+                    type="button",
+                    id="cta_button_1",
+                    position={"x": width-350, "y": height-150},
+                    size={"width": 300, "height": 100},
+                    content="{{cta_text}}",
+                    style={"bg_color": "#FF6600", "text_color": "#FFFFFF", "font_size": 32, "border_radius": 10}
+                )
+            ]
     
-    def create_template(self, name: str, dimensions: List[int]) -> TemplateLayout:
+    def create_template(self, name: str, dimensions: List[int], positioning_mode: str = "pixel", is_ai_native: bool = False) -> TemplateLayout:
         """Create a new editable template"""
-        elements = self.get_default_elements(dimensions)
+        elements = self.get_default_elements(dimensions, positioning_mode, is_ai_native)
+        
+        # Define design rules for AI-native mode
+        design_rules = []
+        if is_ai_native:
+            design_rules = [
+                "Generate a single continuous real-world scene",
+                "No panels, no split views, no segmented layouts",
+                "No UI elements, labels, badges, or black rounded rectangles",
+                "All text must exist on real physical surfaces",
+                "One dominant message, others must support it",
+                "Cinematic lighting, realistic materials, premium brand feel"
+            ]
+        
         template = TemplateLayout(
             name=name,
             dimensions=dimensions,
             elements=elements,
-            background_style={"style": "modern", "color_scheme": "brand"}
+            background_style={"style": "modern", "color_scheme": "brand"},
+            positioning_mode="semantic" if is_ai_native else positioning_mode,
+            design_rules=design_rules
         )
         return template
     
@@ -114,8 +248,13 @@ class EditableTemplateManager:
                 "name": template.name,
                 "dimensions": template.dimensions,
                 "elements": [asdict(element) for element in template.elements],
-                "background_style": template.background_style
+                "background_style": template.background_style,
+                "positioning_mode": template.positioning_mode
             }
+            
+            # Add design_rules if AI-native
+            if template.design_rules:
+                template_dict["design_rules"] = template.design_rules
             
             with open(filepath, 'w') as f:
                 json.dump(template_dict, f, indent=2)
@@ -142,7 +281,9 @@ class EditableTemplateManager:
                 name=data["name"],
                 dimensions=data["dimensions"],
                 elements=elements,
-                background_style=data.get("background_style", {})
+                background_style=data.get("background_style", {}),
+                positioning_mode=data.get("positioning_mode", "pixel"),  # Default to pixel for backward compatibility
+                design_rules=data.get("design_rules", [])  # Load design_rules if present
             )
             
             return template
@@ -195,6 +336,32 @@ def show_template_editor():
             with st.form("create_template_form"):
                 template_name = st.text_input("Template Name", placeholder="e.g., Holiday Sale Banner")
                 
+                # Rendering mode selector
+                st.markdown("**Template Rendering Mode:**")
+                rendering_mode = st.radio(
+                    "How should text be rendered?",
+                    ["🎨 AI-Native (Cinematic - AI generates all text as part of scene)", 
+                     "🖼️ Overlay (Traditional - Text added on top of background)"],
+                    index=1,
+                    help="AI-Native for cinematic integration, Overlay for precise control"
+                )
+                is_ai_native = "AI-Native" in rendering_mode
+                
+                # Positioning mode selector (only for overlay mode)
+                if not is_ai_native:
+                    st.markdown("**Positioning Mode:**")
+                    positioning_mode = st.radio(
+                        "Choose how elements will be positioned:",
+                        ["📍 Pixel Mode (Precise X,Y coordinates)", "🎯 Zone Mode (Semantic placement)"],
+                        index=0,
+                        help="Pixel mode for exact control, Zone mode for semantic placement"
+                    )
+                    selected_mode = "zone" if "Zone" in positioning_mode else "pixel"
+                else:
+                    # AI-Native always uses zone mode
+                    selected_mode = "zone"
+                    st.info("🎯 AI-Native mode uses zone-based positioning with style hints")
+                
                 dimensions_preset = st.selectbox(
                     "Template Dimensions:",
                     ["Billboard (1920x1080)", "Social Square (1080x1080)", "Web Banner (728x300)", "Instagram Story (1080x1920)", "Custom"]
@@ -217,11 +384,15 @@ def show_template_editor():
                     dimensions = dim_map[dimensions_preset]
                 
                 submitted = st.form_submit_button("🎨 Create Template", width='stretch')
-                if submitted and template_name:
-                    template = manager.create_template(template_name, dimensions)
-                    st.session_state.editing_template = template
-                    st.success(f"✅ Created template: {template_name}")
-                    st.rerun()
+                if submitted:
+                    if not template_name or not template_name.strip():
+                        st.error("❌ Please enter a template name")
+                    else:
+                        template = manager.create_template(template_name, dimensions, selected_mode, is_ai_native)
+                        st.session_state.editing_template = template
+                        mode_desc = "AI-Native Zone-based" if is_ai_native else ("Zone-based" if selected_mode == "zone" else "Pixel-based")
+                        st.success(f"✅ Created {mode_desc} template: {template_name}")
+                        st.rerun()
         
         else:  # Edit existing
             custom_templates = manager.get_custom_templates()
@@ -257,6 +428,26 @@ def show_template_editor():
             You can use `{{client_website}}` as a standalone text element anywhere in your template!
             """)
         
+        with st.expander("📐 Positioning Modes", expanded=False):
+            st.markdown("""
+            **🎯 Choose When Creating Template:**
+            
+            **📍 Pixel Mode (Precise):**
+            - Exact X,Y coordinates for pixel-perfect designs
+            - Full visual control in the preview
+            - Best for: Final production templates, specific brand requirements
+            - All elements use exact coordinates
+            
+            **🎯 Zone Mode (Semantic + AI-Aware):**
+            - Use semantic zones (top-left, center, etc.)
+            - Add style hints (blended, bold, subtle)
+            - AI generates backgrounds aware of your text placement
+            - Best for: Quick layouts, AI-integrated designs, dynamic content
+            - All elements use zone-based positioning
+            
+            **💡 Select mode when creating template - all elements will use that mode!**
+            """)
+        
         with st.expander("📐 Layout Tips", expanded=False):
             st.markdown("""
             **Best Practices:**
@@ -273,6 +464,18 @@ def show_template_editor():
             st.metric("Template Name", template.name)
             st.metric("Dimensions", f"{template.dimensions[0]}×{template.dimensions[1]}px")
             st.metric("Elements", len(template.elements))
+            
+            # Show rendering mode
+            is_ai_native = bool(template.design_rules)
+            render_icon = "🎨" if is_ai_native else "🖼️"
+            render_name = "AI-Native (Cinematic)" if is_ai_native else "Overlay (Traditional)"
+            st.metric("Rendering", f"{render_icon} {render_name}")
+            
+            # Show positioning mode
+            if not is_ai_native:
+                mode_icon = "🎯" if template.positioning_mode == "zone" else "📍"
+                mode_name = "Zone-based" if template.positioning_mode == "zone" else "Pixel-based"
+                st.metric("Positioning", f"{mode_icon} {mode_name}")
     
     # Template editor interface (full width when editing)
     if st.session_state.editing_template:
@@ -281,7 +484,9 @@ def show_template_editor():
 
 def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManager):
     """Visual template editor interface"""
-    st.markdown(f"### ✏️ Editing: **{template.name}**")
+    mode_icon = "🎯" if template.positioning_mode == "zone" else "📍"
+    mode_name = "Zone-based" if template.positioning_mode == "zone" else "Pixel-based"
+    st.markdown(f"### ✏️ Editing: **{template.name}** {mode_icon} ({mode_name})")
     st.markdown(f"📐 Canvas Size: **{template.dimensions[0]} × {template.dimensions[1]}** pixels")
     
     # Main editing area - three columns
@@ -290,15 +495,59 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
     with preview_col:
         st.markdown("#### 🎨 Template Preview")
         
+        # Check template's positioning mode
+        is_zone_template = (template.positioning_mode == "zone")
+        
         # Create visual preview image
         preview_img = Image.new('RGB', tuple(template.dimensions), color='#f0f0f0')
         draw = ImageDraw.Draw(preview_img)
         
+        # Draw zone grid overlay if this is a zone-based template
+        if is_zone_template:
+            width, height = template.dimensions
+            # Draw light grid lines to show zones
+            grid_color = '#d0d0d0'
+            # Vertical lines (3 columns)
+            draw.line([(width//3, 0), (width//3, height)], fill=grid_color, width=1)
+            draw.line([(2*width//3, 0), (2*width//3, height)], fill=grid_color, width=1)
+            # Horizontal lines (3 rows)
+            draw.line([(0, height//3), (width, height//3)], fill=grid_color, width=1)
+            draw.line([(0, 2*height//3), (width, 2*height//3)], fill=grid_color, width=1)
+            
+            # Add zone labels
+            try:
+                zone_font = ImageFont.truetype("arial.ttf", 14)
+            except:
+                zone_font = ImageFont.load_default()
+            
+            zone_labels = [
+                ("top-left", width//6, height//6),
+                ("top-center", width//2, height//6),
+                ("top-right", 5*width//6, height//6),
+                ("center-left", width//6, height//2),
+                ("center", width//2, height//2),
+                ("center-right", 5*width//6, height//2),
+                ("bottom-left", width//6, 5*height//6),
+                ("bottom-center", width//2, 5*height//6),
+                ("bottom-right", 5*width//6, 5*height//6)
+            ]
+            for label, x, y in zone_labels:
+                draw.text((x, y), label, fill='#999999', anchor="mm", font=zone_font)
+        
         # Draw elements on preview
         if template.elements:
             for i, element in enumerate(template.elements):
-                x = element.position['x']
-                y = element.position['y']
+                # Resolve position (zone or pixel)
+                if 'zone' in element.position:
+                    # For zone-based, calculate approximate center position for preview
+                    from utils.template_manager import TemplateManager
+                    tm = TemplateManager()
+                    pos = tm._resolve_position(element.position, template.dimensions)
+                    x, y = pos['x'], pos['y']
+                else:
+                    x = element.position['x']
+                    y = element.position['y']
+                
                 w = element.size['width']
                 h = element.size['height']
                 
@@ -351,7 +600,16 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
                 elements_info = ""
                 for i, element in enumerate(template.elements):
                     elements_info += f"**{i+1}. {element.type.title()}:** `{element.content[:25]}{'...' if len(element.content) > 25 else ''}`\n"
-                    elements_info += f"  📍 Position: ({element.position['x']}, {element.position['y']}) | Size: {element.size['width']}×{element.size['height']}\n\n"
+                    # Show position based on format
+                    if 'zone' in element.position:
+                        zone = element.position['zone']
+                        style = element.position.get('style', '')
+                        elements_info += f"  🎯 Zone: **{zone}**"
+                        if style:
+                            elements_info += f" | Style: *{style}*"
+                        elements_info += f" | Size: {element.size['width']}×{element.size['height']}\n\n"
+                    else:
+                        elements_info += f"  📍 Position: ({element.position['x']}, {element.position['y']}) | Size: {element.size['width']}×{element.size['height']}\n\n"
                 st.markdown(elements_info)
         else:
             st.info("No elements added yet. Use the 'Add Element' section to start building your template.")
@@ -368,12 +626,13 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
                 )
             )
         with bg_col2:
+            color_schemes = ["brand", "warm", "cool", "monochrome", "vibrant"]
+            current_scheme = template.background_style.get("color_scheme", "brand")
+            scheme_index = color_schemes.index(current_scheme) if current_scheme in color_schemes else 0
             bg_color = st.selectbox(
                 "Color Scheme:",
-                ["brand", "warm", "cool", "monochrome", "vibrant"],
-                index=["brand", "warm", "cool", "monochrome", "vibrant"].index(
-                    template.background_style.get("color_scheme", "brand")
-                )
+                color_schemes,
+                index=scheme_index
             )
         
         template.background_style = {"style": bg_style, "color_scheme": bg_color}
@@ -383,10 +642,24 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
         
         if template.elements:
             for i, element in enumerate(template.elements):
-                with st.expander(f"{i+1}. {element.type.title()}: {element.content[:20]}...", expanded=False):
+                # Create title with position mode indicator
+                pos_icon = "🎯" if 'zone' in element.position else "📍"
+                with st.expander(f"{pos_icon} {i+1}. {element.type.title()}: {element.content[:20]}...", expanded=False):
                     st.write(f"**Type:** {element.type}")
                     st.write(f"**Content:** {element.content}")
-                    st.write(f"**Position:** ({element.position['x']}, {element.position['y']})")
+                    
+                    # Display position based on format
+                    if 'zone' in element.position:
+                        st.write(f"**Position Mode:** Zone-based")
+                        st.write(f"**Zone:** {element.position['zone']}")
+                        if element.position.get('style'):
+                            st.write(f"**Style:** {element.position['style']}")
+                        if element.position.get('integration'):
+                            st.write(f"**Integration:** {element.position['integration']}")
+                    else:
+                        st.write(f"**Position Mode:** Pixel-based")
+                        st.write(f"**Position:** ({element.position['x']}, {element.position['y']})")
+                    
                     st.write(f"**Size:** {element.size['width']} × {element.size['height']}")
                     
                     if st.button(f"🗑️ Delete", key=f"delete_{i}"):
@@ -397,6 +670,14 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
         
         # Add new element with full control
         st.markdown("#### ➕ Add New Element")
+        
+        # Display template's positioning mode
+        template_mode = template.positioning_mode
+        mode_icon = "🎯" if template_mode == "zone" else "📍"
+        mode_name = "Zone-based" if template_mode == "zone" else "Pixel-based"
+        st.info(f"{mode_icon} **Template Mode: {mode_name}** (All elements use this mode)")
+        
+        is_zone_mode = (template_mode == "zone")
         
         with st.form("add_element_form", clear_on_submit=True):
             element_type = st.selectbox("Element Type:", ["text", "logo", "button", "shape"])
@@ -411,12 +692,63 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
             else:  # shape
                 content = st.text_input("Shape Label:", placeholder="Decorative shape")
             
-            # Position and size inputs
-            pos_col1, pos_col2 = st.columns(2)
-            with pos_col1:
-                x_pos = st.number_input("X Position", min_value=0, max_value=template.dimensions[0], value=50)
-            with pos_col2:
-                y_pos = st.number_input("Y Position", min_value=0, max_value=template.dimensions[1], value=50)
+            # Position inputs - different for pixel vs zone mode
+            if is_zone_mode:
+                # Zone-based positioning
+                is_ai_native = bool(template.design_rules)
+                
+                zone_col1, zone_col2 = st.columns(2)
+                with zone_col1:
+                    zone = st.selectbox(
+                        "Zone:",
+                        ["top-left", "top-center", "top-right",
+                         "center-left", "center", "center-right",
+                         "bottom-left", "bottom-center", "bottom-right"],
+                        index=0
+                    )
+                with zone_col2:
+                    if is_ai_native:
+                        priority = st.selectbox(
+                            "Priority:",
+                            ["highest", "high", "medium", "low"],
+                            index=2,
+                            help="Visual priority for AI rendering"
+                        )
+                    else:
+                        style_hint = st.text_input(
+                            "Style:",
+                            placeholder="e.g., blended, bold, subtle",
+                            help="Visual style hints for AI background generation"
+                        )
+                
+                if is_ai_native:
+                    integration = st.text_input(
+                        "Integration:",
+                        placeholder="e.g., part of the scene, readable but not flat",
+                        value="naturally integrated",
+                        help="How element integrates with scene"
+                    )
+                    
+                    if element_type != "logo":
+                        visual_style = st.text_input(
+                            "Visual Style Hint:",
+                            placeholder="e.g., clear, large, modern typography with subtle glow",
+                            help="Describe how AI should render this text"
+                        )
+                else:
+                    integration = st.text_input(
+                        "Integration:",
+                        placeholder="e.g., naturally part of environment",
+                        value="naturally integrated",
+                        help="How element should integrate with AI-generated background"
+                    )
+            else:
+                # Pixel-based positioning (existing)
+                pos_col1, pos_col2 = st.columns(2)
+                with pos_col1:
+                    x_pos = st.number_input("X Position", min_value=0, max_value=template.dimensions[0], value=50)
+                with pos_col2:
+                    y_pos = st.number_input("Y Position", min_value=0, max_value=template.dimensions[1], value=50)
             
             size_col1, size_col2 = st.columns(2)
             with size_col1:
@@ -426,19 +758,55 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
             
             submitted = st.form_submit_button("➕ Add Element")
             if submitted and content:
-                new_element = TemplateElement(
-                    type=element_type,
-                    content=content,
-                    position={'x': x_pos, 'y': y_pos},
-                    size={'width': width, 'height': height},
-                    style={
+                # Build position dict based on mode
+                is_ai_native = bool(template.design_rules)
+                
+                if is_zone_mode:
+                    if is_ai_native:
+                        position = {
+                            'zone': zone,
+                            'priority': priority,
+                            'integration': integration if integration.strip() else 'naturally integrated'
+                        }
+                    else:
+                        position = {
+                            'zone': zone,
+                            'style': style_hint if style_hint.strip() else '',
+                            'integration': integration if integration.strip() else 'naturally integrated'
+                        }
+                else:
+                    position = {'x': x_pos, 'y': y_pos}
+                
+                # Generate unique ID for the element
+                element_id = f"{element_type}_{len(template.elements) + 1}"
+                
+                # Build style dict based on mode
+                if is_ai_native:
+                    # AI-native: only style_hint, no font specs
+                    element_style = {}
+                    if element_type != 'logo' and 'visual_style' in locals() and visual_style.strip():
+                        element_style['style_hint'] = visual_style
+                    elif element_type == 'logo':
+                        element_style['opacity'] = 1.0
+                else:
+                    # Overlay mode: traditional font specs
+                    element_style = {
                         'color': '#FFFFFF' if element_type == 'text' else '#FF6600',
                         'font_size': 30 if element_type == 'text' else None,
                         'bg_color': '#FF6600' if element_type == 'button' else None
                     }
+                
+                new_element = TemplateElement(
+                    type=element_type,
+                    id=element_id,
+                    content=content,
+                    position=position,
+                    size={'width': width, 'height': height},
+                    style=element_style
                 )
                 template.elements.append(new_element)
-                st.success(f"Added {element_type} element!")
+                mode_name = "AI-native zone-based" if is_ai_native else ("zone-based" if is_zone_mode else "pixel-based")
+                st.success(f"Added {element_type} element ({mode_name})!")
                 st.rerun()
     
     with properties_col:
@@ -465,13 +833,35 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
                 # Content
                 new_content = st.text_input("Content:", value=selected_element.content)
                 
-                # Position
+                # Position - different for pixel vs zone mode
                 st.markdown("**Position:**")
-                pos_col1, pos_col2 = st.columns(2)
-                with pos_col1:
-                    new_x = st.number_input("X:", value=selected_element.position['x'], min_value=0)
-                with pos_col2:
-                    new_y = st.number_input("Y:", value=selected_element.position['y'], min_value=0)
+                if template.positioning_mode == "zone":
+                    # Zone-based editing
+                    zone_col1, zone_col2 = st.columns(2)
+                    with zone_col1:
+                        current_zone = selected_element.position.get('zone', 'center')
+                        new_zone = st.selectbox(
+                            "Zone:",
+                            ["top-left", "top-center", "top-right",
+                             "center-left", "center", "center-right",
+                             "bottom-left", "bottom-center", "bottom-right"],
+                            index=["top-left", "top-center", "top-right",
+                                   "center-left", "center", "center-right",
+                                   "bottom-left", "bottom-center", "bottom-right"].index(current_zone)
+                        )
+                    with zone_col2:
+                        current_style = selected_element.position.get('style', '')
+                        new_style = st.text_input("Style:", value=current_style, placeholder="e.g., blended, bold")
+                    
+                    current_integration = selected_element.position.get('integration', 'naturally integrated')
+                    new_integration = st.text_input("Integration:", value=current_integration)
+                else:
+                    # Pixel-based editing
+                    pos_col1, pos_col2 = st.columns(2)
+                    with pos_col1:
+                        new_x = st.number_input("X:", value=selected_element.position.get('x', 0), min_value=0)
+                    with pos_col2:
+                        new_y = st.number_input("Y:", value=selected_element.position.get('y', 0), min_value=0)
                 
                 # Size
                 st.markdown("**Size:**")
@@ -483,7 +873,20 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
                 
                 # Style properties
                 st.markdown("**Styling:**")
-                if selected_element.type == "text":
+                
+                is_ai_native = bool(template.design_rules)
+                
+                if is_ai_native and selected_element.type != "logo":
+                    # AI-native mode: only style_hint
+                    current_style_hint = selected_element.style.get('style_hint', '')
+                    new_style_hint = st.text_area(
+                        "Visual Style Hint:", 
+                        value=current_style_hint,
+                        placeholder="e.g., glowing neon sign, illuminated billboard text",
+                        help="Describe how the AI should render this text in the scene"
+                    )
+                elif selected_element.type == "text":
+                    # Overlay mode: traditional font properties
                     font_size = st.number_input("Font Size:", value=selected_element.style.get('font_size', 30), min_value=8, max_value=200)
                     text_color = st.color_picker("Text Color:", value=selected_element.style.get('color', '#FFFFFF'))
                 elif selected_element.type == "button":
@@ -494,10 +897,32 @@ def show_visual_editor(template: TemplateLayout, manager: EditableTemplateManage
                 if update_submitted:
                     # Update element properties
                     selected_element.content = new_content
-                    selected_element.position = {'x': new_x, 'y': new_y}
+                    
+                    # Update position based on mode
+                    if template.positioning_mode == "zone":
+                        if is_ai_native:
+                            # AI-native: position has priority
+                            selected_element.position = {
+                                'zone': new_zone,
+                                'priority': selected_element.position.get('priority', 'medium'),
+                                'integration': new_integration
+                            }
+                        else:
+                            # Overlay: position has style
+                            selected_element.position = {
+                                'zone': new_zone,
+                                'style': new_style,
+                                'integration': new_integration
+                            }
+                    else:
+                        selected_element.position = {'x': new_x, 'y': new_y}
+                    
                     selected_element.size = {'width': new_w, 'height': new_h}
                     
-                    if selected_element.type == "text":
+                    # Update style based on mode
+                    if is_ai_native and selected_element.type != "logo":
+                        selected_element.style = {'style_hint': new_style_hint}
+                    elif selected_element.type == "text":
                         selected_element.style.update({
                             'font_size': font_size,
                             'color': text_color
