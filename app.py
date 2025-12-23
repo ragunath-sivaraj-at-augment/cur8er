@@ -836,7 +836,7 @@ def main():
         # NEW: Visual Layout Generator Entry Point
         st.subheader("🎨 Alternative Methods")
         
-        if st.button("🖼️ Visual Layout Generator", use_container_width=True, help="Create ads by designing layout visually"):
+        if st.button("🖼️ Visual Layout Generator", width='stretch', help="Create ads by designing layout visually"):
             st.session_state.show_visual_layout = True
             st.rerun()
         
