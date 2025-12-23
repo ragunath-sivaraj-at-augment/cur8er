@@ -894,24 +894,30 @@ def main():
                             # Get current generation parameters
                             params = st.session_state.generation_params
                             
+                            # Extract from nested structure
+                            user_input = params.get("=== USER INPUT ===", {})
+                            model_gen = params.get("=== MODEL & GENERATION ===", {})
+                            template_info = params.get("=== TEMPLATE INFO ===", {})
+                            
                             # Retrieve the logo from session state
-                            logo_to_use = st.session_state.client_logo
+                            logo_to_use = st.session_state.get('client_logo')
                             
                             # Store parameters and set generating flag
                             st.session_state.pending_generation = {
                                 'prompt': edit_prompt,
-                                'company_name': params.get("client_name", ""),
-                                'client_website': params.get("client_website", ""),
-                                'client_tagline': params.get("client_tagline", ""),
-                                'dimensions': params.get("dimensions", (1024, 1024)),
-                                'ad_medium': params.get("medium", "Instagram Post"),
-                                'selected_ai_model': params.get("model", "DALL-E 3"),
-                                'style_preset': params.get("style", "Modern & Minimalist"),
-                                'color_scheme': params.get("color_scheme", "Brand Colors"),
-                                'include_text': params.get("include_text", True),
-                                'include_cta': params.get("include_cta", True),
+                                'company_name': user_input.get("client_name", ""),
+                                'client_website': user_input.get("client_website", ""),
+                                'client_tagline': user_input.get("client_tagline", ""),
+                                'dimensions': (model_gen.get("dimensions", {}).get("width", 1024), 
+                                              model_gen.get("dimensions", {}).get("height", 1024)),
+                                'ad_medium': model_gen.get("medium", "Instagram Post"),
+                                'selected_ai_model': model_gen.get("model_selected", "DALL-E 3"),
+                                'style_preset': model_gen.get("style", "Modern & Minimalist"),
+                                'color_scheme': model_gen.get("color_scheme", "Brand Colors"),
+                                'include_text': model_gen.get("include_text", True),
+                                'include_cta': model_gen.get("include_cta", True),
                                 'uploaded_logo': logo_to_use,
-                                'selected_template': params.get("template_used"),
+                                'selected_template': template_info.get("template_used"),
                                 'reference_images': reference_images
                             }
                             st.session_state.is_generating = True

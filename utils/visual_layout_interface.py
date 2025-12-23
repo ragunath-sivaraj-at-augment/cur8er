@@ -92,38 +92,117 @@ def show_visual_layout_generator():
         
         # Model selection
         st.subheader("1. Model")
+        model_options = ["🍌⭐ Nano Banana Pro", "🍌 Nano Banana", "🎨 DALL-E 3"]
+        default_model_index = 0
+        if 'loaded_model' in st.session_state and st.session_state.loaded_model:
+            try:
+                default_model_index = model_options.index(st.session_state.loaded_model)
+            except ValueError:
+                pass
+        
         model = st.selectbox(
             "AI Model",
-            ["🍌⭐ Nano Banana Pro", "🍌 Nano Banana", "🎨 DALL-E 3"],
+            model_options,
+            index=default_model_index,
             help="Nano Banana Pro recommended"
         )
         
+        # Load Layout Section (moved here from below)
+        st.subheader("2. Load Saved Layout")
+        
+        # Create layouts directory if it doesn't exist
+        import os
+        layouts_dir = "layouts/visual"
+        os.makedirs(layouts_dir, exist_ok=True)
+        
+        # List existing layouts
+        saved_layouts = []
+        if os.path.exists(layouts_dir):
+            saved_layouts = [f.replace('.json', '') for f in os.listdir(layouts_dir) if f.endswith('.json')]
+        
+        # Load saved layout
+        if saved_layouts:
+            selected_layout = st.selectbox("Select Layout", [""] + saved_layouts, key="load_layout_select", help="Choose a saved layout to restore all settings")
+            if st.button("📂 Load Layout", width='stretch', help="Load a saved canvas layout"):
+                if selected_layout:
+                    filepath = os.path.join(layouts_dir, f"{selected_layout}.json")
+                    with open(filepath, 'r') as f:
+                        layout_data = json.load(f)
+                    
+                    # Store loaded settings in session state
+                    st.session_state.canvas_elements = layout_data["elements"]
+                    st.session_state.loaded_dimension_choice = layout_data.get("dimension_choice")
+                    st.session_state.loaded_medium = layout_data.get("medium")
+                    st.session_state.loaded_style = layout_data.get("style")
+                    st.session_state.loaded_color_scheme = layout_data.get("color_scheme")
+                    st.session_state.loaded_model = layout_data.get("model")
+                    st.session_state.canvas_key += 1
+                    st.session_state.update_canvas = True
+                    st.success(f"✅ Loaded layout: {selected_layout}")
+                    st.rerun()
+                else:
+                    st.error("❌ Select a layout")
+        else:
+            st.caption("💡 No saved layouts yet. Create and save a layout to reuse it later.")
+        
         # Dimensions
-        st.subheader("2. Canvas Size")
-        dimension_presets = {
-            "Instagram Post (1080x1080)": (1080, 1080),
-            "Facebook Post (1200x630)": (1200, 630),
-            "Instagram Story (1080x1920)": (1080, 1920),
-            "Twitter Post (1200x675)": (1200, 675),
-            "Custom": None
+        st.subheader("3. Canvas Size & Medium")
+        
+        # Medium/Platform selection (matches main UI exactly)
+        medium_options = ["Social Media", "Print", "Digital Display", "Email", "Web Banner"]
+        default_medium_index = 0
+        if 'loaded_medium' in st.session_state and st.session_state.loaded_medium:
+            try:
+                default_medium_index = medium_options.index(st.session_state.loaded_medium)
+            except ValueError:
+                pass
+        
+        ad_medium = st.selectbox(
+            "Medium/Platform:",
+            options=medium_options,
+            index=default_medium_index,
+            help="Platform context helps optimize the design"
+        )
+        
+        # Size options (matches main UI exactly)
+        size_options = {
+            "Square (1080x1080) - Instagram Post": (1080, 1080),
+            "Landscape (1920x1080) - YouTube Thumbnail": (1920, 1080),
+            "Portrait (1080x1920) - Instagram Story": (1080, 1920),
+            "Banner (728x90) - Web Banner": (728, 90),
+            "Leaderboard (970x250) - Web Header": (970, 250),
+            "Facebook Cover (820x312)": (820, 312),
+            "LinkedIn Post (1200x627)": (1200, 627),
+            "Custom Size": None
         }
         
-        dim_choice = st.selectbox("Size Preset", list(dimension_presets.keys()))
+        default_dim_index = 0
+        if 'loaded_dimension_choice' in st.session_state and st.session_state.loaded_dimension_choice:
+            try:
+                default_dim_index = list(size_options.keys()).index(st.session_state.loaded_dimension_choice)
+            except ValueError:
+                pass
         
-        if dim_choice == "Custom":
+        dim_choice = st.selectbox(
+            "Select ad size:",
+            list(size_options.keys()),
+            index=default_dim_index
+        )
+        
+        if dim_choice == "Custom Size":
             col_w, col_h = st.columns(2)
             with col_w:
-                width = st.number_input("Width", 800, 3840, 1920, 10)
+                width = st.number_input("Width (px)", 100, 4096, 1080, 10)
             with col_h:
-                height = st.number_input("Height", 600, 2160, 1080, 10)
+                height = st.number_input("Height (px)", 100, 4096, 1080, 10)
             dimensions = (width, height)
         else:
-            dimensions = dimension_presets[dim_choice]
+            dimensions = size_options[dim_choice]
         
-        st.markdown(f"**Canvas:** {dimensions[0]}x{dimensions[1]}px")
+        st.markdown(f"**Canvas:** {dimensions[0]}x{dimensions[1]}px | **Medium:** {ad_medium}")
         
         # Drawing tool selection
-        st.subheader("3. Canvas Tools")
+        st.subheader("4. Canvas Tools")
         tool_options = {
             "rect": "📦 Rectangle",
             "circle": "⭕ Circle",
@@ -142,7 +221,7 @@ def show_visual_layout_generator():
             st.caption("💡 Click to add points, double-click to complete")
         
         # Quick add buttons
-        st.subheader("4. Quick Add Elements")
+        st.subheader("5. Quick Add Elements")
         
         element_types = {
             "[LOGO]": {"w": 200, "h": 120, "type": "logo"},
@@ -180,7 +259,7 @@ def show_visual_layout_generator():
         
         # Element list and delete
         if st.session_state.canvas_elements:
-            st.subheader("5. Current Elements")
+            st.subheader("6. Current Elements")
             for idx, elem in enumerate(st.session_state.canvas_elements):
                 with st.container():
                     col_label, col_pos, col_del = st.columns([2, 2, 1])
@@ -275,14 +354,32 @@ def show_visual_layout_generator():
         
         # Scene style (simplified)
         st.subheader("8. Style Settings")
+        style_options = ["Modern & Minimalist", "Modern", "Luxury", "Professional", "Creative"]
+        default_style_index = 0
+        if 'loaded_style' in st.session_state and st.session_state.loaded_style:
+            try:
+                default_style_index = style_options.index(st.session_state.loaded_style)
+            except ValueError:
+                pass
+        
         style = st.selectbox(
             "Visual Style",
-            ["Modern & Minimalist", "Modern", "Luxury", "Professional", "Creative"]
+            style_options,
+            index=default_style_index
         )
+        
+        color_scheme_options = ["Brand Colors", "Monochrome", "Warm Tones", "Cool Tones", "Vibrant"]
+        default_color_index = 0
+        if 'loaded_color_scheme' in st.session_state and st.session_state.loaded_color_scheme:
+            try:
+                default_color_index = color_scheme_options.index(st.session_state.loaded_color_scheme)
+            except ValueError:
+                pass
         
         color_scheme = st.selectbox(
             "Color Scheme",
-            ["Brand Colors", "Monochrome", "Warm Tones", "Cool Tones", "Vibrant"]
+            color_scheme_options,
+            index=default_color_index
         )
     
     with canvas_col:
@@ -301,10 +398,11 @@ def show_visual_layout_generator():
             # Show loading message instead of canvas
             with canvas_placeholder.container():
                 st.info("🔄 Updating canvas...")
+                # Reset flag and force rerun to show fresh canvas
                 st.session_state.update_canvas = False
+                time.sleep(0.1)  # Brief pause to ensure state is committed
                 st.rerun()
         
-        # Create canvas with existing elements as initial data
         initial_drawing = {
             "version": "4.4.0",
             "objects": []
@@ -437,6 +535,45 @@ def show_visual_layout_generator():
                 st.session_state.update_canvas = True
                 st.rerun()
         
+        # Save Layout Section
+        st.markdown("---")
+        st.subheader("💾 Save This Layout")
+        layout_name = st.text_input(
+            "Layout Name",
+            placeholder="e.g., billboard_1, social_post_template",
+            key="save_layout_name",
+            help="Give your layout a memorable name to reuse later"
+        )
+        if st.button("💾 Save Current Layout", width='stretch', type="primary", help="Save canvas elements and settings"):
+            if layout_name and st.session_state.canvas_elements:
+                # Create layouts directory if it doesn't exist
+                import os
+                layouts_dir = "layouts/visual"
+                os.makedirs(layouts_dir, exist_ok=True)
+                
+                layout_data = {
+                    "name": layout_name,
+                    "dimensions": list(dimensions),
+                    "dimension_choice": dim_choice,
+                    "medium": ad_medium,
+                    "style": style,
+                    "color_scheme": color_scheme,
+                    "model": model,
+                    "elements": st.session_state.canvas_elements,
+                    "created_at": datetime.now().isoformat()
+                }
+                
+                filepath = os.path.join(layouts_dir, f"{layout_name}.json")
+                with open(filepath, 'w') as f:
+                    json.dump(layout_data, f, indent=2)
+                
+                st.success(f"✅ Saved layout: {layout_name}")
+                st.rerun()
+            elif not layout_name:
+                st.error("❌ Enter a layout name")
+            else:
+                st.error("❌ No elements to save - add elements to the canvas first")
+        
         # Create and display reference image (only when not updating)
         if not st.session_state.update_canvas:
             # Create reference image from canvas elements
@@ -486,6 +623,19 @@ def show_visual_layout_generator():
                     dimensions
                 )
                 
+                # Save reference image to assets folder
+                try:
+                    os.makedirs("assets/generated_ads", exist_ok=True)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    brand_name = next((v for k, v in content_mapping.items() 
+                                      if 'BRAND' in k.upper() and v != k), "layout")
+                    ref_filename = f"reference_{brand_name.replace(' ', '_')}_{timestamp}.png"
+                    ref_filepath = os.path.join("assets", "generated_ads", ref_filename)
+                    reference_img.save(ref_filepath, "PNG")
+                    st.write(f"💾 Reference saved: {ref_filepath}")
+                except Exception as save_error:
+                    st.warning(f"⚠️ Could not save reference: {str(save_error)}")
+                
                 st.write("📝 Building prompt...")
                 
                 # Detect scene type from custom instructions or style
@@ -509,52 +659,81 @@ def show_visual_layout_generator():
                 
                 # Add layout description in natural language
                 prompt_parts.append(f"\nIMPORTANT: A reference image is provided showing exact text positions with placeholder labels in [BRACKETS]. Use this reference to determine the PRECISE location and scale of each text element.")
-                prompt_parts.append(f"\nCreate a professional {dimensions[0]}x{dimensions[1]}px advertisement as a SINGLE UNIFIED SCENE (do not divide into sections or quadrants). Place text elements at the EXACT positions shown in the reference image:")
+                prompt_parts.append(f"\nCreate a professional {dimensions[0]}x{dimensions[1]}px advertisement as ONE SEAMLESS UNIFIED BACKGROUND IMAGE. The ENTIRE canvas should be a single continuous scene with no divisions, sections, or color blocks. Overlay text at specified coordinates on this unified background:")
                 
-                # Build natural layout description
-                layout_descriptions = []
+                # ===== POSITION INSTRUCTIONS - COMMENTED OUT FOR TESTING =====
+                # Testing approach: Let reference image handle positioning visually without verbal descriptions
+                # This may prevent AI from creating separate blocks/sections based on "area" language
+                
+                # # Build natural layout description
+                # layout_descriptions = []
+                # for idx, elem in enumerate(st.session_state.canvas_elements, 1):
+                #     elem_label = elem['label']
+                #     content = content_mapping.get(elem_label, elem_label)
+                #     x, y, w, h = elem['x'], elem['y'], elem['width'], elem['height']
+                #     
+                #     # Determine position description using element CENTER for accuracy
+                #     elem_center_x = x + w / 2
+                #     elem_center_y = y + h / 2
+                #     h_pos = "left" if elem_center_x < dimensions[0] / 3 else ("center" if elem_center_x < 2 * dimensions[0] / 3 else "right")
+                #     v_pos = "top" if elem_center_y < dimensions[1] / 3 else ("middle" if elem_center_y < 2 * dimensions[1] / 3 else "bottom")
+                #     position_desc = f"in the {v_pos}-{h_pos} area"
+                #     
+                #     if 'LOGO' in elem_label.upper() or elem.get('type') == 'logo':
+                #         # Use positive "negative space" framing - be EXTREMELY explicit
+                #         layout_descriptions.append(f"- {position_desc}: Leave this area COMPLETELY EMPTY with just the plain background continuing naturally - do NOT add any graphics, illustrations, shapes, icons, symbols, text, or design elements in this space. This empty space is reserved for logo placement after generation. Just extend the background scene naturally through this area with no focal elements.")
+                #     elif 'CTA' in elem_label.upper() or 'call' in elem_label.lower() or 'button' in elem_label.lower():
+                #         # CTA button with shadow for scene unity
+                #         if is_architectural_scene:
+                #             layout_descriptions.append(f"- Place a clean button with the text '{content}' {position_desc} - render as a dimensional UI element integrated into the scene with a soft shadow on the floor/surface beneath it")
+                #         else:
+                #             layout_descriptions.append(f"- Place a simple, clean button with the text '{content}' {position_desc} - use a soft-edged button that blends naturally with the scene, with a subtle shadow grounding it in the environment")
+                #     else:
+                #         # Regular text - scene-aware implementation
+                #         if is_architectural_scene:
+                #             # Physical text for architecture
+                #             layout_descriptions.append(f"- Render the text '{content}' {position_desc} as physical typography integrated into the architectural space (such as brushed-metal letters, glass-morphism lettering, or dimensional signage) with realistic shadows on the surface below, creating a unified scene where text exists as a real architectural element")
+                #         elif is_nature_scene:
+                #             # Clean overlay for nature
+                #             layout_descriptions.append(f"- Render the text '{content}' directly on the scene {position_desc} without any background box - use clean, elegant typography with a subtle drop shadow that grounds the text in the natural environment, ensuring it feels painted into the scene rather than floating on top")
+                #         else:
+                #             # Default: clean overlay
+                #             layout_descriptions.append(f"- Render the text '{content}' directly on the scene {position_desc} without any background box or container - use clean typography with natural contrast and a subtle shadow for depth")
+                # 
+                # prompt_parts.extend(layout_descriptions)
+                
+                # ===== NEW APPROACH: Content-only list without position descriptions =====
+                # Just tell AI what text to render - let reference image show WHERE
+                content_list = []
                 for idx, elem in enumerate(st.session_state.canvas_elements, 1):
                     elem_label = elem['label']
                     content = content_mapping.get(elem_label, elem_label)
-                    x, y, w, h = elem['x'], elem['y'], elem['width'], elem['height']
-                    
-                    # Determine position description
-                    h_pos = "left" if x < dimensions[0] / 3 else ("center" if x < 2 * dimensions[0] / 3 else "right")
-                    v_pos = "top" if y < dimensions[1] / 3 else ("middle" if y < 2 * dimensions[1] / 3 else "bottom")
-                    position_desc = f"in the {v_pos}-{h_pos} area"
                     
                     if 'LOGO' in elem_label.upper() or elem.get('type') == 'logo':
-                        # Use positive "negative space" framing instead of NO/NO/NO
-                        layout_descriptions.append(f"- {position_desc}: This area is clean, empty negative space where the natural background scene continues seamlessly - reserve this as an open area for logo overlay (the actual company logo will be added separately after generation)")
+                        # For logo: request empty space - avoid using word "logo" to prevent AI from rendering it as text
+                        content_list.append(f"- Reserved transparent area (keep background continuous through this space, no graphics or text)")
                     elif 'CTA' in elem_label.upper() or 'call' in elem_label.lower() or 'button' in elem_label.lower():
-                        # CTA button with shadow for scene unity
-                        if is_architectural_scene:
-                            layout_descriptions.append(f"- Place a clean button with the text '{content}' {position_desc} - render as a dimensional UI element integrated into the scene with a soft shadow on the floor/surface beneath it")
-                        else:
-                            layout_descriptions.append(f"- Place a simple, clean button with the text '{content}' {position_desc} - use a soft-edged button that blends naturally with the scene, with a subtle shadow grounding it in the environment")
+                        # CTA: just the button text
+                        content_list.append(f"- Button with text: '{content}'")
                     else:
-                        # Regular text - scene-aware implementation
-                        if is_architectural_scene:
-                            # Physical text for architecture
-                            layout_descriptions.append(f"- Render the text '{content}' {position_desc} as physical typography integrated into the architectural space (such as brushed-metal letters, glass-morphism lettering, or dimensional signage) with realistic shadows on the surface below, creating a unified scene where text exists as a real architectural element")
-                        elif is_nature_scene:
-                            # Clean overlay for nature
-                            layout_descriptions.append(f"- Render the text '{content}' directly on the scene {position_desc} without any background box - use clean, elegant typography with a subtle drop shadow that grounds the text in the natural environment, ensuring it feels painted into the scene rather than floating on top")
-                        else:
-                            # Default: clean overlay
-                            layout_descriptions.append(f"- Render the text '{content}' directly on the scene {position_desc} without any background box or container - use clean typography with natural contrast and a subtle shadow for depth")
+                        # Regular text: just the content
+                        content_list.append(f"- Text: '{content}'")
                 
-                prompt_parts.extend(layout_descriptions)
+                prompt_parts.append("\nText elements to render (positions shown in reference image):")
+                prompt_parts.extend(content_list)
+                # ===== END NEW APPROACH =====
                 
                 # Add style and quality requirements
                 prompt_parts.append(f"\nStyle: {style}")
                 prompt_parts.append(f"Color palette: {color_scheme}")
                 prompt_parts.append(f"\nCRITICAL REQUIREMENTS:")
-                prompt_parts.append(f"- Use the reference image to match EXACT text positions, sizes, and alignment shown by the placeholder labels")
+                prompt_parts.append(f"- FIRST create ONE completely unified, seamless background scene that fills the entire {dimensions[0]}x{dimensions[1]}px canvas")
+                prompt_parts.append(f"- The background must be continuous with NO sections, blocks, quadrants, or color divisions")
+                prompt_parts.append(f"- ABSOLUTELY NO horizontal or vertical lines dividing the image")
+                prompt_parts.append(f"- THEN overlay text elements at the positions indicated in the reference image")
+                prompt_parts.append(f"- Use the reference image ONLY for text positioning - NOT for dividing the background into sections")
+                prompt_parts.append(f"- Text should appear to float on the unified background, not sit in separate colored boxes")
                 prompt_parts.append(f"- Each text element should appear in the same location as its corresponding [PLACEHOLDER] in the reference")
-                prompt_parts.append(f"- Create ONE continuous, unified scene - DO NOT divide the image into sections, quadrants, or panels with lines")
-                prompt_parts.append(f"- The entire image should be a seamless photographic scene with text overlaid at specified positions")
-                prompt_parts.append(f"- NO horizontal or vertical dividing lines separating the image into blocks")
                 prompt_parts.append(f"- Render all text directly on the unified scene without background boxes or containers")
                 prompt_parts.append(f"- Only the CTA button should have a button shape")
                 prompt_parts.append(f"- Use natural color contrast and subtle drop shadows for text readability")
@@ -593,6 +772,8 @@ def show_visual_layout_generator():
                             logo_elem = next((e for e in st.session_state.canvas_elements 
                                             if e.get("type") == "logo" or "LOGO" in e.get("label", "").upper()), None)
                             if logo_elem:
+                                st.write(f"📍 Logo position: x={logo_elem['x']}, y={logo_elem['y']}, size={logo_elem['width']}x{logo_elem['height']}")
+                                
                                 # Resize logo to fit the designated area
                                 logo_img = logo_img.resize((logo_elem["width"], logo_elem["height"]), Image.Resampling.LANCZOS)
                                 
@@ -600,17 +781,19 @@ def show_visual_layout_generator():
                                 if logo_img.mode != 'RGBA':
                                     logo_img = logo_img.convert('RGBA')
                                 
-                                # Remove white/light backgrounds from logo
+                                # Remove white/light backgrounds from logo - more aggressive threshold
                                 logo_array = np.array(logo_img)
                                 
-                                # Create mask for white/near-white pixels (R>240, G>240, B>240)
-                                white_mask = (logo_array[:, :, 0] > 240) & (logo_array[:, :, 1] > 240) & (logo_array[:, :, 2] > 240)
+                                # Create mask for white/near-white pixels (lowered threshold from 240 to 200 for better detection)
+                                white_mask = (logo_array[:, :, 0] > 200) & (logo_array[:, :, 1] > 200) & (logo_array[:, :, 2] > 200)
                                 
                                 # Set alpha to 0 for white pixels
                                 logo_array[white_mask, 3] = 0
                                 
                                 # Convert back to PIL Image
                                 logo_img = Image.fromarray(logo_array, 'RGBA')
+                                
+                                st.write(f"✅ Logo processed: {logo_img.mode}, size={logo_img.size}")
                                 
                                 # Paste logo onto generated image using alpha as mask
                                 if generated_image.mode != 'RGBA':
@@ -620,11 +803,31 @@ def show_visual_layout_generator():
                                 
                                 # Convert back to RGB for final output
                                 generated_image = generated_image.convert('RGB')
+                                st.write("✅ Logo applied successfully")
+                            else:
+                                st.warning("⚠️ Logo element not found in canvas elements")
+                        else:
+                            st.warning("⚠️ Logo processing failed")
+                    else:
+                        st.info("ℹ️ No logo uploaded")
+                    
+                    # Save generated image to disk
+                    try:
+                        os.makedirs("assets/generated_ads", exist_ok=True)
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        brand_name = next((v for k, v in content_mapping.items() 
+                                          if 'BRAND' in k.upper() and v != k), "layout")
+                        img_filename = f"visual_layout_{brand_name.replace(' ', '_')}_{timestamp}.png"
+                        img_filepath = os.path.join("assets", "generated_ads", img_filename)
+                        generated_image.save(img_filepath, "PNG")
+                        st.write(f"💾 Generated image saved: {img_filepath}")
+                    except Exception as save_error:
+                        st.warning(f"⚠️ Could not save generated image: {str(save_error)}")
                     
                     status.update(label="✅ Complete!", state="complete")
                     st.success("✨ Generated successfully!")
                     
-                    # Store in session state first
+                    # Store in session state
                     st.session_state.generated_ad = generated_image
                     
                     # Extract brand name from content mapping if available
@@ -635,6 +838,7 @@ def show_visual_layout_generator():
                         "method": "visual_layout_interactive",
                         "model": generation_model,
                         "dimensions": dimensions,
+                        "medium": ad_medium,
                         "elements_count": len(st.session_state.canvas_elements),
                         "content_mapping": content_mapping,
                         "custom_instructions": custom_instructions,
@@ -691,6 +895,80 @@ def show_visual_layout_generator():
                     st.session_state.edit_by_prompt_mode = False
                 st.rerun()
         
+        # Resize section
+        st.markdown("---")
+        st.subheader("📐 Resize Image")
+        
+        # Preset sizes
+        resize_presets = {
+            "Instagram Post (1080x1080)": (1080, 1080),
+            "Instagram Story (1080x1920)": (1080, 1920),
+            "Facebook Post (1200x630)": (1200, 630),
+            "Twitter Post (1200x675)": (1200, 675),
+            "LinkedIn Post (1200x627)": (1200, 627),
+            "YouTube Thumbnail (1280x720)": (1280, 720),
+            "Pinterest Pin (1000x1500)": (1000, 1500),
+            "Web Banner (970x250)": (970, 250),
+            "Custom Size": None
+        }
+        
+        col_preset, col_action = st.columns([3, 1])
+        
+        with col_preset:
+            resize_choice = st.selectbox(
+                "Select target size:",
+                list(resize_presets.keys()),
+                help="Choose a preset or custom size to resize the generated image"
+            )
+            
+            if resize_choice == "Custom Size":
+                col_w, col_h = st.columns(2)
+                with col_w:
+                    resize_width = st.number_input("Width (px)", 100, 4096, 1080, 10, key="resize_w")
+                with col_h:
+                    resize_height = st.number_input("Height (px)", 100, 4096, 1080, 10, key="resize_h")
+                target_size = (resize_width, resize_height)
+            else:
+                target_size = resize_presets[resize_choice]
+        
+        with col_action:
+            st.write("")  # Spacing
+            st.write("")  # Spacing
+            if st.button("🔄 Resize & Save", width='stretch', type="primary", help="Resize image and save to disk"):
+                if target_size:
+                    try:
+                        # Resize image
+                        resized_img = st.session_state.generated_ad.resize(target_size, Image.Resampling.LANCZOS)
+                        
+                        # Save to disk
+                        os.makedirs("assets/generated_ads", exist_ok=True)
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        params = st.session_state.generation_params
+                        brand_name = next((v for k, v in params.get("content_mapping", {}).items() 
+                                          if 'BRAND' in k.upper() and v != k), "layout")
+                        size_str = f"{target_size[0]}x{target_size[1]}"
+                        resized_filename = f"visual_layout_{brand_name.replace(' ', '_')}_{size_str}_{timestamp}.png"
+                        resized_filepath = os.path.join("assets", "generated_ads", resized_filename)
+                        resized_img.save(resized_filepath, "PNG")
+                        
+                        st.success(f"✅ Resized to {size_str} and saved: {resized_filename}")
+                        
+                        # Show preview
+                        st.image(resized_img, caption=f"Resized: {size_str}", width=400)
+                        
+                        # Download button for resized image
+                        buf = io.BytesIO()
+                        resized_img.save(buf, format='PNG')
+                        st.download_button(
+                            "💾 Download Resized Image",
+                            data=buf.getvalue(),
+                            file_name=resized_filename,
+                            mime="image/png",
+                            width='stretch'
+                        )
+                    except Exception as resize_error:
+                        st.error(f"❌ Resize error: {str(resize_error)}")
+        
         # Edit by prompt interface
         if st.session_state.get('edit_by_prompt_mode', False):
             st.markdown("---")
@@ -731,8 +1009,22 @@ def show_visual_layout_generator():
                                         use_search_grounding=False,
                                         text_rendering_mode=True
                                     )
+                                elif "DALL-E" in params['model']:
+                                    # Use DALL-E Edit API with the current image as base
+                                    from utils.ai_image_editor import AIImageEditor
+                                    editor = AIImageEditor()
+                                    modified_image = editor.edit_image(
+                                        image=st.session_state.generated_ad,
+                                        prompt=edit_prompt,  # Use just the modification prompt, not the full prompt
+                                        size=params['dimensions']
+                                    )
                                 else:
-                                    modified_image = generator.generate_image(prompt=full_edit_prompt, size=params['dimensions'])
+                                    # For other models, pass the current image as reference
+                                    st.warning(f"⚠️ {params['model']} may not support image editing. Generating new image with modifications...")
+                                    modified_image = generator.generate_image(
+                                        prompt=full_edit_prompt,
+                                        size=params['dimensions']
+                                    )
                                 
                                 if modified_image:
                                     # Apply logo if it was used originally
